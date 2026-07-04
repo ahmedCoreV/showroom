@@ -1,0 +1,490 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OxeFit UAE — Agent Outreach Console</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500;600&display=swap');
+
+:root{
+  --navy:#16233A; --navy2:#1E2F4D; --panel:#20304E; --line:#33456A;
+  --gold:#C9A15B; --gold-soft:#8A6F3C;
+  --paper:#EDE7DA; --muted:#9AA7C0;
+  --pass:#6FA97C; --warn:#D9A441; --fail:#C6534B;
+  --radius:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--navy);color:var(--paper);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.5;min-height:100vh}
+h1,h2,h3,.disp{font-family:'Space Grotesk',system-ui,sans-serif}
+header{border-bottom:1px solid var(--line);padding:18px 26px;display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}
+header h1{font-size:20px;letter-spacing:.06em}
+header h1 span{color:var(--gold)}
+header .sub{color:var(--muted);font-size:12px;letter-spacing:.14em;text-transform:uppercase}
+nav{display:flex;gap:6px;margin-left:auto}
+nav button{background:none;border:1px solid var(--line);color:var(--muted);padding:7px 16px;border-radius:20px;cursor:pointer;font-family:'Space Grotesk';font-size:13px;letter-spacing:.04em}
+nav button.active{background:var(--gold);border-color:var(--gold);color:var(--navy);font-weight:700}
+nav button:hover:not(.active){border-color:var(--gold-soft);color:var(--paper)}
+main{max-width:1180px;margin:0 auto;padding:22px 26px 80px}
+
+/* dashboard strip */
+.dash{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:22px}
+.dash .card{background:var(--navy2);border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px}
+.dash .n{font-family:'Space Grotesk';font-size:26px;font-weight:700;color:var(--gold)}
+.dash .n.alert{color:var(--warn)}
+.dash .l{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+
+.grouptitle{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin:26px 0 10px;border-bottom:1px solid var(--line);padding-bottom:6px;display:flex;justify-content:space-between;align-items:baseline}
+.grouptitle small{color:var(--muted);letter-spacing:.02em;text-transform:none}
+
+/* agency rows */
+.agency{background:var(--navy2);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;display:grid;grid-template-columns:minmax(210px,1.4fr) minmax(160px,1fr) 150px auto;gap:14px;align-items:center}
+.agency.due{border-color:var(--warn)}
+.agency .name{font-family:'Space Grotesk';font-weight:700;font-size:15px}
+.agency .focus{color:var(--muted);font-size:12px;margin-top:2px}
+.agency .web{color:var(--gold);font-size:12px;text-decoration:none}
+.agency .web:hover{text-decoration:underline}
+.agency input{width:100%;background:var(--navy);border:1px solid var(--line);color:var(--paper);border-radius:6px;padding:6px 8px;font-size:12px;margin-top:4px}
+.agency input:focus{outline:none;border-color:var(--gold-soft)}
+select{background:var(--navy);border:1px solid var(--line);color:var(--paper);border-radius:6px;padding:7px 8px;font-size:12px;width:100%}
+select:focus{outline:none;border-color:var(--gold-soft)}
+.badge{display:inline-block;font-size:11px;letter-spacing:.06em;padding:3px 10px;border-radius:12px;border:1px solid var(--line);color:var(--muted);margin-top:5px}
+.badge.due{border-color:var(--warn);color:var(--warn);font-weight:600}
+.badge.resp{border-color:var(--pass);color:var(--pass)}
+.btnrow{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.btn{background:none;border:1px solid var(--gold-soft);color:var(--gold);border-radius:6px;padding:7px 12px;cursor:pointer;font-size:12px;font-family:'Space Grotesk';letter-spacing:.03em;white-space:nowrap}
+.btn:hover{background:var(--gold);color:var(--navy)}
+.btn.solid{background:var(--gold);color:var(--navy);font-weight:700;border-color:var(--gold)}
+.btn.solid:hover{filter:brightness(1.08)}
+.btn.ghost{border-color:var(--line);color:var(--muted)}
+.btn.ghost:hover{background:var(--line);color:var(--paper)}
+
+/* modal */
+.overlay{position:fixed;inset:0;background:rgba(10,16,28,.75);display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto;z-index:50}
+.overlay.open{display:flex}
+.modal{background:var(--navy2);border:1px solid var(--gold-soft);border-radius:var(--radius);max-width:720px;width:100%;padding:22px}
+.modal h3{color:var(--gold);margin-bottom:4px;letter-spacing:.04em}
+.modal .to{color:var(--muted);font-size:12px;margin-bottom:12px}
+.modal textarea{width:100%;min-height:300px;background:var(--navy);border:1px solid var(--line);color:var(--paper);border-radius:8px;padding:12px;font-size:13px;font-family:'Inter';line-height:1.55}
+.modal input.subj{width:100%;background:var(--navy);border:1px solid var(--line);color:var(--paper);border-radius:8px;padding:9px 12px;font-size:13px;margin-bottom:8px}
+.modal .actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+
+/* qualify form */
+.qwrap{display:grid;grid-template-columns:1.05fr .95fr;gap:20px}
+@media(max-width:860px){.qwrap{grid-template-columns:1fr}.agency{grid-template-columns:1fr}}
+.panel{background:var(--navy2);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+.panel h2{font-size:15px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);margin-bottom:14px}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fgrid .full{grid-column:1/-1}
+label{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:3px}
+.fgrid input{width:100%;background:var(--navy);border:1px solid var(--line);color:var(--paper);border-radius:6px;padding:8px 10px;font-size:13px}
+.fgrid input:focus{outline:none;border-color:var(--gold-soft)}
+
+/* verdict */
+.verdict{border-radius:var(--radius);padding:16px;border:1px solid var(--line);margin-bottom:14px}
+.verdict.pass{border-color:var(--pass)} .verdict.warn{border-color:var(--warn)} .verdict.fail{border-color:var(--fail)}
+.verdict .v{font-family:'Space Grotesk';font-size:22px;font-weight:700;letter-spacing:.05em}
+.verdict.pass .v{color:var(--pass)} .verdict.warn .v{color:var(--warn)} .verdict.fail .v{color:var(--fail)}
+.scorebar{height:8px;background:var(--navy);border-radius:4px;margin:10px 0;overflow:hidden}
+.scorebar>div{height:100%;background:var(--gold);border-radius:4px;transition:width .4s}
+.reason{display:flex;gap:8px;font-size:13px;margin:5px 0;align-items:flex-start}
+.reason .ic{width:16px;flex:none;font-weight:700}
+.reason.ok .ic{color:var(--pass)} .reason.wr .ic{color:var(--warn)} .reason.fl .ic{color:var(--fail)}
+
+/* shortlist table */
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);text-align:left;padding:8px;border-bottom:1px solid var(--line)}
+td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:hover td{background:rgba(201,161,91,.05)}
+.pill{font-size:11px;padding:2px 9px;border-radius:10px;font-weight:600}
+.pill.pass{background:rgba(111,169,124,.15);color:var(--pass)}
+.pill.warn{background:rgba(217,164,65,.15);color:var(--warn)}
+.pill.fail{background:rgba(198,83,75,.15);color:var(--fail)}
+.empty{color:var(--muted);font-size:13px;padding:18px;text-align:center;border:1px dashed var(--line);border-radius:var(--radius)}
+.note{color:var(--muted);font-size:12px;margin-top:10px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--gold);color:var(--navy);font-family:'Space Grotesk';font-weight:700;padding:10px 22px;border-radius:22px;display:none;z-index:99}
+.tab{display:none}.tab.active{display:block}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <h1>OXE<span>FIT</span> UAE</h1>
+  <div class="sub">Agent Outreach & Showroom Qualification Console</div>
+  <nav>
+    <button id="nav-pipe" class="active" onclick="showTab('pipe')">Pipeline</button>
+    <button id="nav-qual" onclick="showTab('qual')">Qualify a Property</button>
+    <button id="nav-short" onclick="showTab('short')">Shortlist</button>
+  </nav>
+</header>
+<main>
+
+<div class="dash" id="dash"></div>
+
+<!-- PIPELINE -->
+<div class="tab active" id="tab-pipe">
+  <div id="pipeList"></div>
+  <p class="note">Stages advance automatically when you generate emails. Follow-up 1 becomes due 4 days after outreach; Follow-up 2 due 5 days after that. Add each agency's retail-leasing contact email once — it's saved for all future emails. Data is stored privately in this chat's storage.</p>
+</div>
+
+<!-- QUALIFY -->
+<div class="tab" id="tab-qual">
+  <div class="qwrap">
+    <div class="panel">
+      <h2>Submitted option — enter details</h2>
+      <div class="fgrid">
+        <div><label>Agency</label><select id="q_agency"></select></div>
+        <div><label>City</label><select id="q_city"><option>Dubai</option><option>Abu Dhabi</option></select></div>
+        <div class="full"><label>Area / location</label><select id="q_area"></select></div>
+        <div><label>Property / unit name</label><input id="q_name" placeholder="e.g. Unit G-14, Gate Avenue"></div>
+        <div><label>Size (m²)</label><input id="q_size" type="number" placeholder="165"></div>
+        <div><label>Clear ceiling height (m)</label><input id="q_ceiling" type="number" step="0.1" placeholder="3.2"></div>
+        <div><label>Floor</label><select id="q_floor"><option value="ground">Ground floor</option><option value="upper_vis">Upper — strong visibility</option><option value="upper">Upper — limited visibility</option></select></div>
+        <div><label>Frontage</label><select id="q_front"><option value="glazed">Glazed street/mall frontage</option><option value="partial">Partial / side frontage</option><option value="none">No display frontage</option></select></div>
+        <div><label>Annual rent (AED)</label><input id="q_rent" type="number" placeholder="320000"></div>
+        <div><label>Service charge / yr (AED)</label><input id="q_sc" type="number" placeholder="45000"></div>
+        <div><label>Delivery access for 2.4 m unit</label><select id="q_del"><option value="yes">Confirmed</option><option value="unknown">Unknown</option><option value="no">Not possible</option></select></div>
+        <div><label>24/7 tenant-controlled A/C</label><select id="q_ac"><option value="yes">Yes</option><option value="unknown">Unknown</option><option value="no">No</option></select></div>
+        <div class="full"><label>Notes</label><input id="q_notes" placeholder="Handover condition, availability, landlord contribution…"></div>
+      </div>
+      <div style="margin-top:14px;display:flex;gap:8px">
+        <button class="btn solid" onclick="runQualify()">Run qualification</button>
+        <button class="btn ghost" onclick="clearQualify()">Clear</button>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Verdict</h2>
+      <div id="verdictBox"><div class="empty">Enter an option's details and run qualification. It is scored against the OxeFit brief: 150–180 m², ≥3.0 m ceiling, ground-floor glazed frontage, AED 400,000 all-in ceiling, delivery access and 24/7 A/C.</div></div>
+      <div id="saveRow" style="display:none;margin-top:10px"><button class="btn solid" onclick="saveProperty()">Save to shortlist</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- SHORTLIST -->
+<div class="tab" id="tab-short">
+  <div class="panel">
+    <h2>Qualified options — ranked</h2>
+    <div id="shortlist"></div>
+  </div>
+</div>
+
+</main>
+
+<!-- EMAIL MODAL -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h3 id="m_title">Email</h3>
+    <div class="to" id="m_to"></div>
+    <input class="subj" id="m_subj">
+    <textarea id="m_body"></textarea>
+    <div class="actions">
+      <button class="btn solid" onclick="openMail()">Open in email app</button>
+      <button class="btn" onclick="copyEmail()">Copy email text</button>
+      <button class="btn" id="m_mark" onclick="markSent()">Mark as sent</button>
+      <button class="btn ghost" onclick="closeModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------- SPEC (single source of truth) ---------- */
+const SPEC = {
+  sizeMin:150, sizeMax:180, sizeHardMin:135, sizeHardMax:200,
+  ceilingMin:3.0, budget:400000,
+  areas:{
+    "Dubai":["Premium mall — Mall of the Emirates","Premium mall — Dubai Hills Mall","Premium mall — Nakheel Mall","Premium mall — Marina Mall","Premium mall — other","Downtown / DIFC corridor","Jumeirah / Umm Suqeim","City Walk / Alserkal Avenue","Palm Jumeirah","Dubai Hills / Umm Al Sheif","Other Dubai"],
+    "Abu Dhabi":["Premium mall — The Galleria","Premium mall — Yas Mall","Premium mall — Marina Mall AD","Premium mall — Reem Mall","Premium mall — other","Al Maryah Island","Saadiyat Island","Yas Island","Al Bateen / Corniche","Al Reem Island","Other Abu Dhabi"]
+  }
+};
+
+/* ---------- AGENCY DIRECTORY ---------- */
+const DEFAULT_AGENCIES = [
+ {id:"jll-dxb",g:"Dubai — Agencies",name:"JLL MENA (Dubai)",focus:"Global firm; dedicated retail agency & tenant representation",web:"jll-mena.com"},
+ {id:"cbre-dxb",g:"Dubai — Agencies",name:"CBRE Middle East (Dubai)",focus:"Global firm; retail leasing & occupier services",web:"cbre.ae"},
+ {id:"sav-dxb",g:"Dubai — Agencies",name:"Savills Middle East (Dubai)",focus:"Retail agency across high street, luxury developments & malls",web:"savills.ae"},
+ {id:"kf-dxb",g:"Dubai — Agencies",name:"Knight Frank UAE (Dubai)",focus:"Commercial agency; occupier & landlord leasing",web:"knightfrank.ae"},
+ {id:"cw-dxb",g:"Dubai — Agencies",name:"Cushman & Wakefield Core (Dubai)",focus:"Commercial agency & tenant representation",web:"cushwakecore.com"},
+ {id:"col-dxb",g:"Dubai — Agencies",name:"Colliers MENA (Dubai)",focus:"Retail & commercial brokerage, advisory",web:"colliers.com"},
+ {id:"crc-dxb",g:"Dubai — Agencies",name:"CRC — Commercial Real Estate Consultants",focus:"Betterhomes' commercial arm; strong retail/showroom inventory",web:"crcproperty.com"},
+ {id:"ev-dxb",g:"Dubai — Agencies",name:"Engel & Völkers Commercial Dubai",focus:"Retail brand expansion & commercial leasing",web:"engelvoelkers.com/ae"},
+ {id:"drv-dxb",g:"Dubai — Agencies",name:"Driven Properties — Commercial",focus:"Commercial & retail units incl. boutique high-street stock",web:"drivenproperties.com"},
+ {id:"aa-dxb",g:"Dubai — Agencies",name:"Allsopp & Allsopp Commercial",focus:"Commercial leasing; structured, compliance-led process",web:"allsoppandallsopp.com"},
+ {id:"jll-ad",g:"Abu Dhabi — Agencies",name:"JLL Abu Dhabi",focus:"Global firm; retail agency, strong on institutional stock",web:"jll-mena.com"},
+ {id:"cbre-ad",g:"Abu Dhabi — Agencies",name:"CBRE Abu Dhabi",focus:"Retail & commercial leasing, occupier services",web:"cbre.ae"},
+ {id:"sav-ad",g:"Abu Dhabi — Agencies",name:"Savills Abu Dhabi",focus:"Commercial agency; retail & mixed-use leasing",web:"abudhabi.savills.ae"},
+ {id:"kf-ad",g:"Abu Dhabi — Agencies",name:"Knight Frank Abu Dhabi",focus:"Commercial agency & landlord relationships",web:"knightfrank.ae"},
+ {id:"col-ad",g:"Abu Dhabi — Agencies",name:"Colliers Abu Dhabi",focus:"Commercial brokerage & advisory",web:"colliers.com"},
+ {id:"ay-ad",g:"Abu Dhabi — Agencies",name:"Avison Young Abu Dhabi",focus:"Commercial agents for tenants, occupiers & investors",web:"avisonyoung.ae"},
+ {id:"crc-ad",g:"Abu Dhabi — Agencies",name:"CRC Abu Dhabi",focus:"Commercial specialist; offices, retail & industrial",web:"crcproperty.com"},
+ {id:"psi-ad",g:"Abu Dhabi — Agencies",name:"Property Shop Investment (PSI)",focus:"Large AD brokerage; full-service sales & leasing",web:"psinv.net"},
+ {id:"met-ad",g:"Abu Dhabi — Agencies",name:"Metropolitan Capital Real Estate",focus:"Full-service AD brokerage; commercial & investment",web:"metropolitan.capital"},
+ {id:"nw-ad",g:"Abu Dhabi — Agencies",name:"Nationwide Middle East Properties",focus:"Established AD agency & portfolio management",web:"nwmea.com"},
+ {id:"maf",g:"Mall Landlords — Direct",name:"Majid Al Futtaim Malls",focus:"Landlord — Mall of the Emirates (leasing team direct)",web:"majidalfuttaim.com"},
+ {id:"emaar",g:"Mall Landlords — Direct",name:"Emaar Malls Management",focus:"Landlord — Dubai Hills Mall & Emaar retail portfolio",web:"emaarmalls.com"},
+ {id:"nakheel",g:"Mall Landlords — Direct",name:"Nakheel Malls",focus:"Landlord — Nakheel Mall Palm Jumeirah & trunk retail",web:"nakheelmalls.ae"},
+ {id:"aldar",g:"Mall Landlords — Direct",name:"Aldar (Yas Mall Retail Leasing)",focus:"Landlord — Yas Mall & Aldar retail destinations",web:"aldar.com"},
+ {id:"galleria",g:"Mall Landlords — Direct",name:"The Galleria Al Maryah (Gulf Related)",focus:"Landlord — The Galleria luxury & lifestyle wings",web:"thegalleria.ae"},
+ {id:"reemmall",g:"Mall Landlords — Direct",name:"Reem Mall Leasing",focus:"Landlord — Reem Mall, Al Reem Island",web:"reemmall.ae"}
+];
+
+const STAGES=["Not contacted","Outreach sent","Follow-up 1 sent","Follow-up 2 sent","Responded","Options received","No fit / closed"];
+const KEY="oxefit-agent-console-v1";
+let state={agencies:[],properties:[]};
+let pendingEmail=null, lastVerdict=null;
+
+/* ---------- STORAGE ---------- */
+async function load(){
+  try{ const r=await window.storage.get(KEY); if(r&&r.value){ state=JSON.parse(r.value);} }
+  catch(e){ /* first run */ }
+  if(!state.agencies||!state.agencies.length){
+    state.agencies=DEFAULT_AGENCIES.map(a=>({...a,contact:"",email:"",stage:STAGES[0],last:null,notes:""}));
+  } else {
+    // merge any new defaults added later
+    DEFAULT_AGENCIES.forEach(d=>{ if(!state.agencies.find(a=>a.id===d.id)) state.agencies.push({...d,contact:"",email:"",stage:STAGES[0],last:null,notes:""}); });
+  }
+  if(!state.properties) state.properties=[];
+  render();
+}
+async function save(){
+  try{ await window.storage.set(KEY, JSON.stringify(state)); }
+  catch(e){ toast("Could not save — storage error"); }
+}
+
+/* ---------- HELPERS ---------- */
+const $=id=>document.getElementById(id);
+function toast(msg){ const t=$("toast"); t.textContent=msg; t.style.display="block"; setTimeout(()=>t.style.display="none",2200); }
+function daysSince(iso){ if(!iso) return 0; return Math.floor((Date.now()-new Date(iso).getTime())/86400000); }
+function fmtAED(n){ return "AED "+Number(n||0).toLocaleString(); }
+function esc(s){ return (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function followupDue(a){
+  const d=daysSince(a.last);
+  if(a.stage==="Outreach sent" && d>=4) return "Follow-up 1 due";
+  if(a.stage==="Follow-up 1 sent" && d>=5) return "Follow-up 2 due";
+  if(a.stage==="Follow-up 2 sent" && d>=7) return "Consider a call / close";
+  return null;
+}
+
+/* ---------- EMAIL TEMPLATES ---------- */
+const SPEC_TEXT =
+"KEY REQUIREMENTS\n"+
+"- Size: 150-180 sqm (1,600-1,950 sq ft), largely column-free\n"+
+"- Ground floor strongly preferred, glazed street or mall frontage\n"+
+"- Clear ceiling height: minimum 3.0 m\n"+
+"- Budget ceiling: AED 400,000 total per annum, all-in (rent + service charges) - firm\n"+
+"- Delivery access for a 2.4 m x 1.8 m non-dismantling unit (wide door / freight lift)\n"+
+"- 24/7 tenant-controlled A/C, dedicated grounded power, business internet\n"+
+"- Lease: 3-5 years with fit-out / rent-free period\n"+
+"- Priority: premium malls (preferred), then prime high-street districts";
+
+function emailInitial(a){
+  const city = a.g.includes("Abu Dhabi")?"Abu Dhabi":(a.g.includes("Dubai")?"Dubai":"Dubai & Abu Dhabi");
+  return {
+    subj:"Retail showroom requirement — "+city+" — premium fitness brand (150-180 sqm)",
+    body:"Dear "+(a.contact||a.name)+" team,\n\n"+
+"We are launching UAE showrooms for OxeFit, a US premium smart-fitness brand (AI-powered strength systems, USD 4K-40K+ price points), and are actively seeking a boutique showroom in "+city+".\n\n"+
+SPEC_TEXT+"\n\n"+
+"Please share any current or upcoming options that fit, including floor plan, clear height, handover condition, quoted rent & service charge, and availability date. Our full requirements brief (with concept imagery and indicative layout) is available on request.\n\n"+
+"We are ready to view immediately and can move quickly on the right unit.\n\n"+
+"Best regards,\n[Your name]\n[Title], OxeFit UAE\n[Phone] · [Email]"
+  };
+}
+function emailFU1(a){
+  return {
+    subj:"Re: Retail showroom requirement — following up",
+    body:"Dear "+(a.contact||a.name)+" team,\n\nFollowing up on our showroom requirement sent earlier this week (150-180 sqm, ground-floor retail, AED 400,000 all-in ceiling, premium malls preferred).\n\nDo you have any current stock or upcoming availability that could fit? Happy to jump on a quick call if easier.\n\nBest regards,\n[Your name]\nOxeFit UAE · [Phone]"
+  };
+}
+function emailFU2(a){
+  return {
+    subj:"Re: Retail showroom requirement — final follow-up",
+    body:"Dear "+(a.contact||a.name)+" team,\n\nA final follow-up on our OxeFit showroom requirement. If nothing fits today, we'd appreciate being kept on your mailing list for retail units of 150-180 sqm within an AED 400,000 all-in budget in premium locations.\n\nIf there is a better contact on your retail leasing desk, a quick introduction would be appreciated.\n\nBest regards,\n[Your name]\nOxeFit UAE · [Phone]"
+  };
+}
+
+/* ---------- RENDER PIPELINE ---------- */
+function render(){
+  renderDash(); renderPipe(); renderQualifyOptions(); renderShortlist();
+}
+function renderDash(){
+  const ag=state.agencies;
+  const due=ag.filter(a=>followupDue(a)).length;
+  const sent=ag.filter(a=>a.stage!=="Not contacted").length;
+  const resp=ag.filter(a=>["Responded","Options received"].includes(a.stage)).length;
+  const opts=state.properties.length;
+  const passing=state.properties.filter(p=>p.verdict==="PASS").length;
+  $("dash").innerHTML=
+   card(ag.length,"Agencies & landlords")+card(sent,"Outreach sent")+
+   card(due,"Follow-ups due",due>0)+card(resp,"Responded")+
+   card(opts,"Options logged")+card(passing,"Passing spec");
+  function card(n,l,alert){return '<div class="card"><div class="n'+(alert?' alert':'')+'">'+n+'</div><div class="l">'+l+'</div></div>';}
+}
+function renderPipe(){
+  const groups=[...new Set(state.agencies.map(a=>a.g))];
+  let html="";
+  groups.forEach(g=>{
+    html+='<div class="grouptitle">'+g+'<small>'+state.agencies.filter(a=>a.g===g).length+' targets</small></div>';
+    state.agencies.filter(a=>a.g===g).forEach(a=>{
+      const due=followupDue(a);
+      const badge = due?'<span class="badge due">⚑ '+due+'</span>'
+        : (["Responded","Options received"].includes(a.stage)?'<span class="badge resp">'+a.stage+'</span>'
+        : '<span class="badge">'+a.stage+(a.last?' · '+daysSince(a.last)+'d ago':'')+'</span>');
+      let nextBtn="";
+      if(a.stage==="Not contacted") nextBtn='<button class="btn solid" onclick="openEmail(\''+a.id+'\',\'init\')">Generate outreach</button>';
+      else if(due==="Follow-up 1 due"||a.stage==="Outreach sent") nextBtn='<button class="btn'+(due?' solid':'')+'" onclick="openEmail(\''+a.id+'\',\'fu1\')">Follow-up 1</button>';
+      else if(due==="Follow-up 2 due"||a.stage==="Follow-up 1 sent") nextBtn='<button class="btn'+(due?' solid':'')+'" onclick="openEmail(\''+a.id+'\',\'fu2\')">Follow-up 2</button>';
+      else if(a.stage==="Follow-up 2 sent") nextBtn='<button class="btn ghost" onclick="setStage(\''+a.id+'\',\'No fit / closed\')">Close out</button>';
+      html+='<div class="agency'+(due?' due':'')+'">'+
+        '<div><div class="name">'+esc(a.name)+'</div><div class="focus">'+esc(a.focus)+'</div>'+
+        '<a class="web" href="https://'+a.web+'" target="_blank" rel="noopener">'+a.web+'</a></div>'+
+        '<div><input placeholder="Contact name (optional)" value="'+esc(a.contact)+'" onchange="upd(\''+a.id+'\',\'contact\',this.value)">'+
+        '<input placeholder="Retail leasing email" value="'+esc(a.email)+'" onchange="upd(\''+a.id+'\',\'email\',this.value)"></div>'+
+        '<div><select onchange="setStage(\''+a.id+'\',this.value)">'+STAGES.map(s=>'<option'+(s===a.stage?' selected':'')+'>'+s+'</option>').join("")+'</select>'+badge+'</div>'+
+        '<div class="btnrow">'+nextBtn+
+        (["Responded","Options received"].includes(a.stage)?'<button class="btn" onclick="prefillQualify(\''+a.id+'\')">Qualify their option</button>':"")+
+        '</div></div>';
+    });
+  });
+  $("pipeList").innerHTML=html;
+}
+function upd(id,k,v){ const a=state.agencies.find(x=>x.id===id); a[k]=v.trim(); save(); }
+function setStage(id,s){ const a=state.agencies.find(x=>x.id===id); a.stage=s; if(["Outreach sent","Follow-up 1 sent","Follow-up 2 sent"].includes(s)) a.last=new Date().toISOString(); save(); render(); }
+
+/* ---------- EMAIL MODAL ---------- */
+function openEmail(id,type){
+  const a=state.agencies.find(x=>x.id===id);
+  const t = type==="init"?emailInitial(a): type==="fu1"?emailFU1(a):emailFU2(a);
+  pendingEmail={id,type};
+  $("m_title").textContent=(type==="init"?"Initial outreach":type==="fu1"?"Follow-up 1":"Follow-up 2")+" — "+a.name;
+  $("m_to").textContent= a.email? "To: "+a.email : "No email saved yet — add the agency's retail-leasing email in the pipeline row, or paste this text into your CRM.";
+  $("m_subj").value=t.subj; $("m_body").value=t.body;
+  $("overlay").classList.add("open");
+}
+function closeModal(){ $("overlay").classList.remove("open"); pendingEmail=null; }
+function openMail(){
+  const a=state.agencies.find(x=>x.id===pendingEmail.id);
+  const url="mailto:"+encodeURIComponent(a.email||"")+"?subject="+encodeURIComponent($("m_subj").value)+"&body="+encodeURIComponent($("m_body").value);
+  window.open(url,"_blank");
+}
+function copyEmail(){
+  const txt="Subject: "+$("m_subj").value+"\n\n"+$("m_body").value;
+  navigator.clipboard.writeText(txt).then(()=>toast("Email copied")).catch(()=>toast("Copy failed — select manually"));
+}
+function markSent(){
+  const {id,type}=pendingEmail;
+  setStage(id, type==="init"?"Outreach sent": type==="fu1"?"Follow-up 1 sent":"Follow-up 2 sent");
+  closeModal(); toast("Logged — follow-up timer started");
+}
+
+/* ---------- QUALIFY ---------- */
+function renderQualifyOptions(){
+  $("q_agency").innerHTML=state.agencies.map(a=>'<option value="'+a.id+'">'+esc(a.name)+'</option>').join("");
+  fillAreas();
+}
+function fillAreas(){
+  const city=$("q_city").value;
+  $("q_area").innerHTML=SPEC.areas[city].map(x=>'<option>'+x+'</option>').join("");
+}
+document.addEventListener("change",e=>{ if(e.target.id==="q_city") fillAreas(); });
+
+function prefillQualify(id){ showTab('qual'); $("q_agency").value=id; }
+
+function runQualify(){
+  const size=parseFloat($("q_size").value), ceil=parseFloat($("q_ceiling").value);
+  const rent=parseFloat($("q_rent").value)||0, sc=parseFloat($("q_sc").value)||0;
+  const total=rent+sc;
+  const floor=$("q_floor").value, front=$("q_front").value, del=$("q_del").value, ac=$("q_ac").value;
+  const area=$("q_area").value, isMall=area.startsWith("Premium mall");
+  if(!size||!ceil||!rent){ toast("Enter at least size, ceiling and rent"); return; }
+
+  const reasons=[]; let score=0; let hardFail=false, soft=false;
+  const R=(cls,txt)=>reasons.push({cls,txt});
+
+  // Budget — hard gate
+  if(total>SPEC.budget){ hardFail=true; R("fl","Total "+fmtAED(total)+" exceeds the AED 400,000 all-in ceiling"); }
+  else { score+=30; R("ok","Within budget: "+fmtAED(total)+" all-in ("+Math.round(total/SPEC.budget*100)+"% of ceiling)"); }
+
+  // Size
+  if(size>=SPEC.sizeMin&&size<=SPEC.sizeMax){ score+=20; R("ok","Size "+size+" m² — inside the 150–180 m² target"); }
+  else if(size>=SPEC.sizeHardMin&&size<=SPEC.sizeHardMax){ soft=true; score+=10; R("wr","Size "+size+" m² — outside target but workable ("+SPEC.sizeHardMin+"–"+SPEC.sizeHardMax+" tolerance)"); }
+  else { hardFail=true; R("fl","Size "+size+" m² — outside acceptable range"); }
+
+  // Ceiling — hard gate
+  if(ceil>=SPEC.ceilingMin){ score+=15; R("ok","Clear height "+ceil+" m — meets 3.0 m minimum"); }
+  else { hardFail=true; R("fl","Clear height "+ceil+" m — below the 3.0 m minimum (XP1 stands 2.25 m)"); }
+
+  // Floor & frontage
+  if(floor==="ground"){ score+=10; R("ok","Ground floor"); }
+  else if(floor==="upper_vis"){ soft=true; score+=5; R("wr","Upper floor — acceptable only with strong visibility; confirm freight access"); }
+  else { hardFail=true; R("fl","Upper floor with limited visibility — outside brief"); }
+
+  if(front==="glazed"){ score+=10; R("ok","Glazed display frontage"); }
+  else if(front==="partial"){ soft=true; score+=4; R("wr","Partial frontage — weakens the window-display concept"); }
+  else { soft=true; R("wr","No display frontage — significant drawback for showroom format"); }
+
+  // Delivery
+  if(del==="yes"){ score+=5; R("ok","Delivery access confirmed for the 2.4 m unit"); }
+  else if(del==="unknown"){ soft=true; R("wr","Delivery access unconfirmed — must verify before LOI"); }
+  else { hardFail=true; R("fl","No viable delivery route for the XP1 — disqualifying"); }
+
+  // A/C
+  if(ac==="yes"){ score+=5; R("ok","24/7 tenant-controlled A/C available"); }
+  else if(ac==="unknown"){ soft=true; R("wr","A/C control unconfirmed — mandatory for the electronics; verify"); }
+  else { hardFail=true; R("fl","No 24/7 climate control — equipment cannot be installed"); }
+
+  // Location bonus
+  if(isMall){ score+=5; R("ok","Premium mall — preferred location class"); }
+  else if(!area.startsWith("Other")){ score+=3; R("ok","Priority district: "+area); }
+  else { soft=true; R("wr","Outside listed priority areas"); }
+
+  const verdict = hardFail?"FAIL": (soft||score<75)?"CONDITIONAL":"PASS";
+  const cls = verdict==="PASS"?"pass":verdict==="FAIL"?"fail":"warn";
+  score=Math.min(100,Math.max(0,score));
+
+  lastVerdict={ id:Date.now(), agencyId:$("q_agency").value, agency:(state.agencies.find(a=>a.id===$("q_agency").value)||{}).name||"",
+    city:$("q_city").value, area, name:$("q_name").value||"Unnamed unit", size, ceil, floor, front, rent, sc, total, del, ac,
+    notes:$("q_notes").value, verdict, score, reasons, date:new Date().toISOString() };
+
+  $("verdictBox").innerHTML='<div class="verdict '+cls+'"><div class="v">'+verdict+' — '+score+'/100</div>'+
+    '<div class="scorebar"><div style="width:'+score+'%"></div></div>'+
+    reasons.map(r=>'<div class="reason '+r.cls+'"><span class="ic">'+(r.cls==="ok"?"✓":r.cls==="wr"?"!":"✕")+'</span><span>'+esc(r.txt)+'</span></div>').join("")+
+    '</div>';
+  $("saveRow").style.display="block";
+}
+function clearQualify(){ ["q_name","q_size","q_ceiling","q_rent","q_sc","q_notes"].forEach(i=>$(i).value=""); $("verdictBox").innerHTML='<div class="empty">Cleared. Enter the next option.</div>'; $("saveRow").style.display="none"; lastVerdict=null; }
+function saveProperty(){
+  if(!lastVerdict) return;
+  state.properties.push(lastVerdict);
+  const a=state.agencies.find(x=>x.id===lastVerdict.agencyId); if(a&&a.stage!=="Options received"){a.stage="Options received";}
+  save(); render(); toast("Saved to shortlist"); showTab('short');
+}
+
+/* ---------- SHORTLIST ---------- */
+function renderShortlist(){
+  const el=$("shortlist");
+  if(!state.properties.length){ el.innerHTML='<div class="empty">No options logged yet. When an agent replies with a unit, qualify it and it will appear here ranked by fit.</div>'; return; }
+  const sorted=[...state.properties].sort((a,b)=>b.score-a.score);
+  el.innerHTML='<table><thead><tr><th>Score</th><th>Verdict</th><th>Unit</th><th>City / Area</th><th>Size · Ceiling</th><th>All-in cost</th><th>Agency</th><th></th></tr></thead><tbody>'+
+   sorted.map(p=>'<tr><td class="disp" style="font-weight:700;color:var(--gold)">'+p.score+'</td>'+
+    '<td><span class="pill '+(p.verdict==="PASS"?"pass":p.verdict==="FAIL"?"fail":"warn")+'">'+p.verdict+'</span></td>'+
+    '<td>'+esc(p.name)+(p.notes?'<div style="color:var(--muted);font-size:12px">'+esc(p.notes)+'</div>':"")+'</td>'+
+    '<td>'+p.city+'<div style="color:var(--muted);font-size:12px">'+esc(p.area)+'</div></td>'+
+    '<td>'+p.size+' m² · '+p.ceil+' m</td>'+
+    '<td>'+fmtAED(p.total)+'</td><td>'+esc(p.agency)+'</td>'+
+    '<td><button class="btn ghost" onclick="delProp('+p.id+')">Remove</button></td></tr>').join("")+
+   '</tbody></table>';
+}
+function delProp(id){ state.properties=state.properties.filter(p=>p.id!==id); save(); render(); }
+
+/* ---------- TABS ---------- */
+function showTab(t){
+  ["pipe","qual","short"].forEach(x=>{ $("tab-"+x).classList.toggle("active",x===t); $("nav-"+x).classList.toggle("active",x===t); });
+}
+
+load();
+</script>
+</body>
+</html>
