@@ -110,8 +110,19 @@ tr:hover td{background:rgba(201,161,91,.05)}
 button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
+<script src="https://alcdn.msauth.net/browser/3.10.0/js/msal-browser.min.js"></script>
 </head>
 <body>
+<!-- AUTH GATE -->
+<div id="authgate" style="position:fixed;inset:0;background:var(--navy);z-index:200;display:flex;align-items:center;justify-content:center">
+  <div style="text-align:center;max-width:420px;padding:30px;border:1px solid var(--line);border-radius:12px;background:var(--navy2)">
+    <div style="font-family:'Space Grotesk';font-size:24px;font-weight:700;letter-spacing:.06em;margin-bottom:6px">OXE<span style="color:var(--gold)">FIT</span> UAE</div>
+    <div style="color:var(--muted);font-size:12px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:22px">Agent Outreach Console — Restricted</div>
+    <button id="msloginbtn" class="btn solid" style="font-size:14px;padding:11px 22px" onclick="msSignIn()">Sign in with Microsoft</button>
+    <div id="autherr" style="color:var(--fail);font-size:13px;margin-top:14px;display:none"></div>
+    <div style="color:var(--muted);font-size:11px;margin-top:18px">Access limited to @core-velocity.com accounts</div>
+  </div>
+</div>
 <header>
   <h1>OXE<span>FIT</span> UAE</h1>
   <div class="sub">Agent Outreach & Showroom Qualification Console</div>
@@ -121,6 +132,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     <button id="nav-qual" onclick="showTab('qual')">Qualify a Property</button>
     <button id="nav-short" onclick="showTab('short')">Shortlist</button>
   </nav>
+  <div id="userchip" style="display:none;align-items:center;gap:10px;font-size:12px;color:var(--muted)">
+    <span id="username"></span>
+    <button class="btn ghost" style="padding:5px 10px" onclick="msSignOut()">Sign out</button>
+  </div>
 </header>
 <main>
 
@@ -217,6 +232,84 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 <div class="toast" id="toast"></div>
 
 <script>
+/* ---------- MICROSOFT ENTRA ID (AZURE AD) LOGIN ---------- */
+/* Fill these two values from your Azure App Registration (the one linked to your GitHub deployment):
+   Azure Portal → Entra ID → App registrations → your app → Overview.
+   Platform must be "Single-page application" with this page's hosted URL as the Redirect URI. */
+const MSAL_CONFIG = {
+  clientId: "YOUR_CLIENT_ID",            // Application (client) ID
+  tenantId: "YOUR_TENANT_ID",            // Directory (tenant) ID
+  allowedDomain: "core-velocity.com"     // only these accounts get in
+};
+
+let msalApp = null, authedUser = null;
+const AUTH_CONFIGURED = !MSAL_CONFIG.clientId.startsWith("YOUR_");
+
+function initAuth(){
+  if(!AUTH_CONFIGURED){
+    // Not yet configured (e.g. previewing inside Claude) — open with a visible notice.
+    document.getElementById("authgate").style.display="none";
+    const chip=document.getElementById("userchip"); chip.style.display="flex";
+    document.getElementById("username").textContent="⚠ Microsoft login not configured — set clientId/tenantId";
+    chip.querySelector("button").style.display="none";
+    startApp(); return;
+  }
+  msalApp = new msal.PublicClientApplication({
+    auth:{ clientId: MSAL_CONFIG.clientId,
+      authority: "https://login.microsoftonline.com/"+MSAL_CONFIG.tenantId,
+      redirectUri: window.location.origin + window.location.pathname },
+    cache:{ cacheLocation: "sessionStorage" }
+  });
+  msalApp.initialize().then(()=>msalApp.handleRedirectPromise()).then(resp=>{
+    const acct = (resp && resp.account) || msalApp.getAllAccounts()[0];
+    if(acct) finishSignIn(acct);
+  }).catch(e=>authError("Sign-in error: "+(e.errorMessage||e.message||e)));
+}
+function msSignIn(){
+  if(!msalApp) return;
+  msalApp.loginPopup({ scopes:["User.Read"], prompt:"select_account" })
+    .then(r=>finishSignIn(r.account))
+    .catch(e=>{
+      if((e.errorCode||"").includes("popup")) msalApp.loginRedirect({scopes:["User.Read"]});
+      else authError("Sign-in failed: "+(e.errorMessage||e.message||e));
+    });
+}
+function finishSignIn(acct){
+  const upn=(acct.username||"").toLowerCase();
+  if(!upn.endsWith("@"+MSAL_CONFIG.allowedDomain)){
+    authError("Access denied — "+upn+" is not a @"+MSAL_CONFIG.allowedDomain+" account.");
+    msalApp.logoutPopup({account:acct}).catch(()=>{});
+    return;
+  }
+  authedUser=acct;
+  document.getElementById("authgate").style.display="none";
+  document.getElementById("userchip").style.display="flex";
+  document.getElementById("username").textContent=acct.name?acct.name+" · "+upn:upn;
+  startApp();
+}
+function msSignOut(){
+  if(msalApp&&authedUser) msalApp.logoutRedirect({account:authedUser}).catch(()=>location.reload());
+  else location.reload();
+}
+function authError(msg){ const el=document.getElementById("autherr"); el.textContent=msg; el.style.display="block"; }
+
+/* ---------- STORAGE ADAPTER ----------
+   Inside Claude artifacts: window.storage (persistent, private).
+   When hosted (e.g. GitHub Pages behind Microsoft login): falls back to
+   browser localStorage, keyed per signed-in user so colleagues don't mix data. */
+const store = {
+  key(k){ return authedUser ? k+"::"+authedUser.username.toLowerCase() : k; },
+  async get(k){
+    if(window.storage&&window.storage.get) return window.storage.get(k);
+    const v=localStorage.getItem(this.key(k)); return v!==null?{key:k,value:v}:null;
+  },
+  async set(k,v){
+    if(window.storage&&window.storage.set) return window.storage.set(k,v);
+    localStorage.setItem(this.key(k),v); return {key:k,value:v};
+  }
+};
+</script>
+<script>
 /* ---------- SPEC (single source of truth) ---------- */
 const SPEC = {
   sizeMin:150, sizeMax:180, sizeHardMin:135, sizeHardMax:200,
@@ -265,7 +358,7 @@ let pendingEmail=null, lastVerdict=null;
 
 /* ---------- STORAGE ---------- */
 async function load(){
-  try{ const r=await window.storage.get(KEY); if(r&&r.value){ state=JSON.parse(r.value);} }
+  try{ const r=await store.get(KEY); if(r&&r.value){ state=JSON.parse(r.value);} }
   catch(e){ /* first run */ }
   if(!state.agencies||!state.agencies.length){
     state.agencies=DEFAULT_AGENCIES.map(a=>({...a,contact:"",stage:STAGES[0],last:null,notes:""}));
@@ -281,7 +374,7 @@ async function load(){
   render();
 }
 async function save(){
-  try{ await window.storage.set(KEY, JSON.stringify(state)); }
+  try{ await store.set(KEY, JSON.stringify(state)); }
   catch(e){ toast("Could not save — storage error"); }
 }
 
@@ -561,7 +654,8 @@ function showTab(t){
   ["guide","pipe","qual","short"].forEach(x=>{ $("tab-"+x).classList.toggle("active",x===t); $("nav-"+x).classList.toggle("active",x===t); });
 }
 
-load();
+function startApp(){ load(); }
+initAuth();
 </script>
 </body>
 </html>
