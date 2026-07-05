@@ -110,7 +110,7 @@ tr:hover td{background:rgba(201,161,91,.05)}
 button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
-<script src="https://alcdn.msauth.net/browser/3.10.0/js/msal-browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/msal-browser/3.7.1/msal-browser.min.js" onerror="var s=document.createElement('script');s.src='https://alcdn.msauth.net/browser/3.10.0/js/msal-browser.min.js';document.head.appendChild(s);"></script>
 </head>
 <body>
 <!-- AUTH GATE -->
@@ -247,31 +247,49 @@ const AUTH_CONFIGURED = !MSAL_CONFIG.clientId.startsWith("YOUR_");
 
 function initAuth(){
   if(!AUTH_CONFIGURED){
-    // Not yet configured (e.g. previewing inside Claude) — open with a visible notice.
     document.getElementById("authgate").style.display="none";
     const chip=document.getElementById("userchip"); chip.style.display="flex";
     document.getElementById("username").textContent="⚠ Microsoft login not configured — set clientId/tenantId";
     chip.querySelector("button").style.display="none";
     startApp(); return;
   }
-  msalApp = new msal.PublicClientApplication({
-    auth:{ clientId: MSAL_CONFIG.clientId,
-      authority: "https://login.microsoftonline.com/"+MSAL_CONFIG.tenantId,
-      redirectUri: window.location.origin + window.location.pathname },
-    cache:{ cacheLocation: "sessionStorage" }
-  });
-  msalApp.initialize().then(()=>msalApp.handleRedirectPromise()).then(resp=>{
-    const acct = (resp && resp.account) || msalApp.getAllAccounts()[0];
-    if(acct) finishSignIn(acct);
-  }).catch(e=>authError("Sign-in error: "+(e.errorMessage||e.message||e)));
+  if(location.protocol==="file:"){
+    authError("You've opened the file directly from disk (file://). Microsoft sign-in only works from the hosted https URL registered in Azure. Upload/deploy the file, then open it from that address.");
+    return;
+  }
+  if(typeof msal==="undefined"){
+    // library may still be loading via the fallback CDN — retry briefly
+    let tries=0; const t=setInterval(()=>{
+      if(typeof msal!=="undefined"){ clearInterval(t); initAuth(); }
+      else if(++tries>20){ clearInterval(t); authError("The Microsoft sign-in library could not load. Check your network/ad-blocker allows cdnjs.cloudflare.com or alcdn.msauth.net, then refresh."); }
+    },250);
+    return;
+  }
+  try{
+    msalApp = new msal.PublicClientApplication({
+      auth:{ clientId: MSAL_CONFIG.clientId,
+        authority: "https://login.microsoftonline.com/"+MSAL_CONFIG.tenantId,
+        redirectUri: window.location.origin + window.location.pathname },
+      cache:{ cacheLocation: "sessionStorage" }
+    });
+    msalApp.initialize().then(()=>msalApp.handleRedirectPromise()).then(resp=>{
+      const acct = (resp && resp.account) || msalApp.getAllAccounts()[0];
+      if(acct) finishSignIn(acct);
+    }).catch(e=>authError("Sign-in error: "+(e.errorMessage||e.message||e)));
+  }catch(e){ authError("Could not start Microsoft sign-in: "+(e.message||e)); }
 }
 function msSignIn(){
-  if(!msalApp) return;
+  if(location.protocol==="file:"){ authError("Sign-in requires the hosted https URL — it can't run from a local file."); return; }
+  if(typeof msal==="undefined"){ authError("Microsoft library not loaded yet — check network/ad-blocker and refresh."); return; }
+  if(!msalApp){ initAuth(); if(!msalApp){ return; } }
+  authError(""); document.getElementById("autherr").style.display="none";
   msalApp.loginPopup({ scopes:["User.Read"], prompt:"select_account" })
     .then(r=>finishSignIn(r.account))
     .catch(e=>{
-      if((e.errorCode||"").includes("popup")) msalApp.loginRedirect({scopes:["User.Read"]});
-      else authError("Sign-in failed: "+(e.errorMessage||e.message||e));
+      const code=(e.errorCode||"")+"";
+      if(code.includes("popup_window_error")||code.includes("empty_window_error")) msalApp.loginRedirect({scopes:["User.Read"]});
+      else if(code.includes("user_cancelled")) authError("Sign-in was cancelled.");
+      else authError("Sign-in failed ["+(code||"unknown")+"]: "+(e.errorMessage||e.message||e));
     });
 }
 function finishSignIn(acct){
