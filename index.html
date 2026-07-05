@@ -110,7 +110,7 @@ tr:hover td{background:rgba(201,161,91,.05)}
 button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/msal-browser/3.7.1/msal-browser.min.js" onerror="var s=document.createElement('script');s.src='https://alcdn.msauth.net/browser/3.10.0/js/msal-browser.min.js';document.head.appendChild(s);"></script>
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js"></script>
 </head>
 <body>
 <!-- AUTH GATE -->
@@ -119,8 +119,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     <div style="font-family:'Space Grotesk';font-size:24px;font-weight:700;letter-spacing:.06em;margin-bottom:6px">OXE<span style="color:var(--gold)">FIT</span> UAE</div>
     <div style="color:var(--muted);font-size:12px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:22px">Agent Outreach Console — Restricted</div>
     <button id="msloginbtn" class="btn solid" style="font-size:14px;padding:11px 22px" onclick="msSignIn()">Sign in with Microsoft</button>
-    <div id="autherr" style="color:var(--fail);font-size:13px;margin-top:14px;display:none"></div>
+    <div id="autherr" style="color:var(--fail);font-size:13px;margin-top:14px;display:none;background:rgba(198,83,75,.12);padding:10px;border-radius:8px;text-align:left"></div>
     <div style="color:var(--muted);font-size:11px;margin-top:18px">Access limited to @core-velocity.com accounts</div>
+    <div id="redirHint" style="color:var(--muted);font-size:10.5px;margin-top:8px;word-break:break-all"></div>
   </div>
 </div>
 <header>
@@ -232,71 +233,69 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 <div class="toast" id="toast"></div>
 
 <script>
-/* ---------- MICROSOFT ENTRA ID (AZURE AD) LOGIN ---------- */
-/* Fill these two values from your Azure App Registration (the one linked to your GitHub deployment):
-   Azure Portal → Entra ID → App registrations → your app → Overview.
-   Platform must be "Single-page application" with this page's hosted URL as the Redirect URI. */
+/* ---------- MICROSOFT SIGN-IN — same mechanism as the working CoreV portal ---------- */
 const MSAL_CONFIG = {
-  clientId: "cd1b7f5f-5ff9-4066-ab4f-06f270a94fcb",   // Application (client) ID
-  tenantId: "6963797d-77dc-433b-9e29-67577bf19a34",   // Directory (tenant) ID
-  allowedDomain: "core-velocity.com"                  // only these accounts get in
+  clientId : "cd1b7f5f-5ff9-4066-ab4f-06f270a94fcb",             // same Azure app as the HR portal / tracker
+  authority: "https://login.microsoftonline.com/core-velocity.com",
+  redirectUri: window.location.origin + window.location.pathname,
+  scopes   : ["User.Read"],
+  allowedDomain: "core-velocity.com"
 };
+let msalInstance=null, authedUser=null;
 
-let msalApp = null, authedUser = null;
-const AUTH_CONFIGURED = !MSAL_CONFIG.clientId.startsWith("YOUR_");
-
-function initAuth(){
-  if(!AUTH_CONFIGURED){
-    document.getElementById("authgate").style.display="none";
-    const chip=document.getElementById("userchip"); chip.style.display="flex";
-    document.getElementById("username").textContent="⚠ Microsoft login not configured — set clientId/tenantId";
-    chip.querySelector("button").style.display="none";
-    startApp(); return;
+async function initMsal(){
+  if(typeof msal==="undefined") return null;
+  if(!msalInstance){
+    msalInstance=new msal.PublicClientApplication({
+      auth:{clientId:MSAL_CONFIG.clientId,authority:MSAL_CONFIG.authority,redirectUri:MSAL_CONFIG.redirectUri},
+      cache:{cacheLocation:"localStorage"}
+    });
+    await msalInstance.initialize();
   }
+  let rr=null; try{ rr=await msalInstance.handleRedirectPromise(); }catch(e){ authError((e&&(e.errorMessage||e.message))||"Sign-in error"); }
+  if(rr&&rr.account) return rr.account;
+  const a=msalInstance.getAllAccounts(); if(a.length) return a[0];
+  return null;
+}
+
+async function initAuth(){
+  try{ const rh=document.getElementById("redirHint"); if(rh) rh.textContent="Sign-in redirect URI (register as SPA in Azure): "+MSAL_CONFIG.redirectUri; }catch(_){}
   if(location.protocol==="file:"){
-    authError("You've opened the file directly from disk (file://). Microsoft sign-in only works from the hosted https URL registered in Azure. Upload/deploy the file, then open it from that address.");
+    authError("You've opened the file directly from disk (file://). Microsoft sign-in only works from the hosted https URL registered in Azure.");
     return;
   }
   if(typeof msal==="undefined"){
-    // library may still be loading via the fallback CDN — retry briefly
     let tries=0; const t=setInterval(()=>{
       if(typeof msal!=="undefined"){ clearInterval(t); initAuth(); }
-      else if(++tries>20){ clearInterval(t); authError("The Microsoft sign-in library could not load. Check your network/ad-blocker allows cdnjs.cloudflare.com or alcdn.msauth.net, then refresh."); }
+      else if(++tries>20){ clearInterval(t); authError("The Microsoft sign-in library could not load. Check your network/ad-blocker allows cdn.jsdelivr.net, then refresh."); }
     },250);
     return;
   }
-  try{
-    msalApp = new msal.PublicClientApplication({
-      auth:{ clientId: MSAL_CONFIG.clientId,
-        authority: "https://login.microsoftonline.com/"+MSAL_CONFIG.tenantId,
-        redirectUri: window.location.origin + window.location.pathname },
-      cache:{ cacheLocation: "sessionStorage" }
-    });
-    msalApp.initialize().then(()=>msalApp.handleRedirectPromise()).then(resp=>{
-      const acct = (resp && resp.account) || msalApp.getAllAccounts()[0];
-      if(acct) finishSignIn(acct);
-    }).catch(e=>authError("Sign-in error: "+(e.errorMessage||e.message||e)));
-  }catch(e){ authError("Could not start Microsoft sign-in: "+(e.message||e)); }
+  let acct=null; try{ acct=await initMsal(); }catch(e){ authError("Could not start Microsoft sign-in: "+((e&&e.message)||e)); }
+  if(acct) finishSignIn(acct);
 }
-function msSignIn(){
+
+async function msSignIn(){
+  const el=document.getElementById("autherr"); el.style.display="none";
   if(location.protocol==="file:"){ authError("Sign-in requires the hosted https URL — it can't run from a local file."); return; }
-  if(typeof msal==="undefined"){ authError("Microsoft library not loaded yet — check network/ad-blocker and refresh."); return; }
-  if(!msalApp){ initAuth(); if(!msalApp){ return; } }
-  authError(""); document.getElementById("autherr").style.display="none";
-  msalApp.loginPopup({ scopes:["User.Read"], prompt:"select_account" })
-    .then(r=>finishSignIn(r.account))
-    .catch(e=>{
-      const code=(e.errorCode||"")+"";
-      if(code.includes("popup_window_error")||code.includes("empty_window_error")) msalApp.loginRedirect({scopes:["User.Read"]});
-      else if(code.includes("user_cancelled")) authError("Sign-in was cancelled.");
-      else authError("Sign-in failed ["+(code||"unknown")+"]: "+(e.errorMessage||e.message||e));
-    });
+  if(!msalInstance){ try{ await initMsal(); }catch(_){} }
+  if(!msalInstance){ authError("Microsoft library not loaded yet — check network/ad-blocker and refresh."); return; }
+  const btn=document.getElementById("msloginbtn"); btn.disabled=true; btn.textContent="Redirecting…";
+  try{
+    try{ Object.keys(sessionStorage).filter(k=>k.startsWith("msal.")&&k.includes("interaction.status")).forEach(k=>sessionStorage.removeItem(k)); }catch(_){}
+    await msalInstance.loginRedirect({ scopes:MSAL_CONFIG.scopes, prompt:"select_account" });
+  }catch(e){
+    const msg=(e&&(e.errorMessage||e.message))||"Sign-in failed";
+    authError(msg+"  —  If this mentions redirect URI, add this exact URL as a SPA redirect URI in the Azure app: "+MSAL_CONFIG.redirectUri);
+    btn.disabled=false; btn.textContent="Sign in with Microsoft";
+  }
 }
+
 function finishSignIn(acct){
   const upn=(acct.username||"").toLowerCase();
   if(!upn.endsWith("@"+MSAL_CONFIG.allowedDomain)){
     authError("Access denied — "+upn+" is not a @"+MSAL_CONFIG.allowedDomain+" account.");
-    msalApp.logoutPopup({account:acct}).catch(()=>{});
+    try{ msalInstance.logoutRedirect({account:acct}); }catch(_){}
     return;
   }
   authedUser=acct;
@@ -305,11 +304,11 @@ function finishSignIn(acct){
   document.getElementById("username").textContent=acct.name?acct.name+" · "+upn:upn;
   startApp();
 }
-function msSignOut(){
-  if(msalApp&&authedUser) msalApp.logoutRedirect({account:authedUser}).catch(()=>location.reload());
-  else location.reload();
+async function msSignOut(){
+  try{ if(msalInstance&&authedUser){ await msalInstance.logoutRedirect({account:authedUser,postLogoutRedirectUri:window.location.href}); } }catch(_){}
+  location.reload();
 }
-function authError(msg){ const el=document.getElementById("autherr"); el.textContent=msg; el.style.display="block"; }
+function authError(msg){ const el=document.getElementById("autherr"); if(!msg){el.style.display="none";return;} el.textContent=msg; el.style.display="block"; }
 
 /* ---------- STORAGE ADAPTER ----------
    Inside Claude artifacts: window.storage (persistent, private).
