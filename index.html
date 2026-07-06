@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -104,6 +105,12 @@ tr:hover td{background:rgba(201,161,91,.05)}
 .note{color:var(--muted);font-size:12px;margin-top:10px}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--gold);color:var(--navy);font-family:'Space Grotesk';font-weight:700;padding:10px 22px;border-radius:22px;display:none;z-index:99}
 .tab{display:none}.tab.active{display:block}
+.sync-chip{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;padding:5px 12px;border-radius:20px;cursor:pointer;border:1px solid var(--line);color:var(--muted);background:var(--navy2);font-family:'Space Grotesk';white-space:nowrap}
+.sync-chip:hover{border-color:var(--gold-soft)}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
+.sync-dot.syncing{background:var(--warn)} .sync-dot.connected{background:var(--pass)} .sync-dot.error{background:var(--fail)}
+.sync-chip.connected{color:var(--pass);border-color:rgba(111,169,124,.4)}
+.sync-chip.syncing{color:var(--warn)} .sync-chip.error{color:var(--fail);border-color:rgba(198,83,75,.4)}
 .step{display:flex;gap:14px;margin-bottom:14px;font-size:13.5px;line-height:1.55}
 .step .sn{flex:none;width:30px;height:30px;border-radius:50%;background:var(--gold);color:var(--navy);font-family:'Space Grotesk';font-weight:700;display:flex;align-items:center;justify-content:center}
 .step b{color:var(--gold)}
@@ -134,6 +141,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     <button id="nav-short" onclick="showTab('short')">Shortlist</button>
   </nav>
   <div id="userchip" style="display:none;align-items:center;gap:10px;font-size:12px;color:var(--muted)">
+    <span class="sync-chip" id="syncChip" onclick="manualSync()" title="Click to sync now"><span class="sync-dot" id="syncDot"></span><span id="syncText">Offline</span></span>
     <span id="username"></span>
     <button class="btn ghost" style="padding:5px 10px" onclick="msSignOut()">Sign out</button>
   </div>
@@ -265,8 +273,10 @@ const MSAL_CONFIG = {
   clientId : "cd1b7f5f-5ff9-4066-ab4f-06f270a94fcb",             // same Azure app as the HR portal / tracker
   authority: "https://login.microsoftonline.com/core-velocity.com",
   redirectUri: window.location.origin + window.location.pathname,
-  scopes   : ["User.Read"],
-  allowedDomain: "core-velocity.com"
+  scopes   : ["Files.ReadWrite.All","User.Read"],                // same as the delivery tracker — shared OneDrive sync
+  allowedDomain: "core-velocity.com",
+  filePath : "/OXEFIT/agent-console.json",                        // SAME folder & mechanism as delivery-tracker.json
+  sharedDriveUser: "demo@core-velocity.com"                       // one file for the whole team
 };
 let msalInstance=null, authedUser=null;
 
@@ -337,21 +347,129 @@ async function msSignOut(){
 }
 function authError(msg){ const el=document.getElementById("autherr"); if(!msg){el.style.display="none";return;} el.textContent=msg; el.style.display="block"; }
 
-/* ---------- STORAGE ADAPTER ----------
-   Inside Claude artifacts: window.storage (persistent, private).
-   When hosted (e.g. GitHub Pages behind Microsoft login): falls back to
-   browser localStorage, keyed per signed-in user so colleagues don't mix data. */
+/* ---------- STORAGE: local cache + shared OneDrive sync (same mechanism as the delivery tracker) ---------- */
 const store = {
-  key(k){ return authedUser ? k+"::"+authedUser.username.toLowerCase() : k; },
+  key(k){ return k; },
   async get(k){
     if(window.storage&&window.storage.get) return window.storage.get(k);
-    const v=localStorage.getItem(this.key(k)); return v!==null?{key:k,value:v}:null;
+    const v=localStorage.getItem(k); return v!==null?{key:k,value:v}:null;
   },
   async set(k,v){
     if(window.storage&&window.storage.set) return window.storage.set(k,v);
-    localStorage.setItem(this.key(k),v); return {key:k,value:v};
+    localStorage.setItem(k,v); return {key:k,value:v};
   }
 };
+
+/* ---- sync engine ---- */
+let _fileRef=null,_sharedErrShown=false,_saveTimer=null,_pollStarted=false,_saving=false;
+const _fileName=(MSAL_CONFIG.filePath.split("/").pop()||"agent-console.json").toLowerCase();
+const SYNC_COLLECTIONS=["agencies","properties"];
+
+function setSync(cls,txt){ const c=$("syncChip"),d=$("syncDot"),t=$("syncText"); if(c)c.className="sync-chip "+(cls||""); if(d)d.className="sync-dot "+(cls||""); if(t)t.textContent=txt; }
+function touch(){ state.meta={...(state.meta||{}), updated:new Date().toISOString(), by:(authedUser&&(authedUser.name||authedUser.username))||""}; }
+function markDeleted(id){ if(!id) return; state.tombstones=state.tombstones||{}; state.tombstones[id]=Date.now(); }
+
+function driveRootUrl(){
+  return "https://graph.microsoft.com/v1.0/users/"+encodeURIComponent(MSAL_CONFIG.sharedDriveUser)+"/drive/root:"+MSAL_CONFIG.filePath+":/content";
+}
+function refContentUrl(ref){ return "https://graph.microsoft.com/v1.0/drives/"+encodeURIComponent(ref.driveId)+"/items/"+encodeURIComponent(ref.itemId)+"/content"; }
+async function getToken(){
+  const req={ scopes:MSAL_CONFIG.scopes, account:authedUser };
+  try{ const r=await msalInstance.acquireTokenSilent(req); return r.accessToken; }
+  catch(e){ await msalInstance.acquireTokenRedirect(req); throw e; }
+}
+async function resolveFileRef(tok,force){
+  if(_fileRef&&!force) return _fileRef;
+  try{
+    const res=await fetch("https://graph.microsoft.com/v1.0/me/drive/sharedWithMe",{headers:{Authorization:"Bearer "+tok}});
+    if(!res.ok) return null;
+    const body=await res.json(); const items=(body&&Array.isArray(body.value))?body.value:[];
+    for(const it of items){
+      const ri=it.remoteItem||it; const name=(it.name||ri.name||"").toLowerCase();
+      const driveId=ri.parentReference&&ri.parentReference.driveId; const itemId=ri.id;
+      if(!driveId||!itemId) continue;
+      if(name===_fileName){ _fileRef={driveId,itemId}; return _fileRef; }
+      if(ri.folder){
+        try{ const ch=await fetch("https://graph.microsoft.com/v1.0/drives/"+encodeURIComponent(driveId)+"/items/"+encodeURIComponent(itemId)+"/children",{headers:{Authorization:"Bearer "+tok}});
+          if(ch.ok){ const kids=await ch.json(); const hit=(kids.value||[]).find(k=>(k.name||"").toLowerCase()===_fileName); if(hit){ _fileRef={driveId,itemId:hit.id}; return _fileRef; } } }catch(_){}
+      }
+    }
+  }catch(_){}
+  return null;
+}
+function showSharedError(){ setSync("error","No shared-drive access"); if(_sharedErrShown) return; _sharedErrShown=true;
+  toast("Can't reach the shared drive ("+MSAL_CONFIG.sharedDriveUser+") — saving on this device only. Ask Ahmed to share the OXEFIT folder, then sign in again."); }
+
+function mergeArr(localArr,remoteArr,tombs){
+  const m=new Map(); (remoteArr||[]).forEach(r=>{ if(r&&r.id) m.set(r.id,r); });
+  (localArr||[]).forEach(l=>{ if(!l||!l.id) return; const r=m.get(l.id); if(!r) m.set(l.id,l); else m.set(l.id,(l._ts||0)>=(r._ts||0)?l:r); });
+  if(tombs){ for(const id in tombs){ const rec=m.get(id); if(rec && (tombs[id]>=(rec._ts||0))) m.delete(id); } }
+  return [...m.values()];
+}
+function mergeRemote(remote){
+  if(!remote||typeof remote!=="object") return;
+  const tombs=Object.assign({}, state.tombstones||{}); const rt=remote.tombstones||{};
+  for(const id in rt){ tombs[id]=Math.max(tombs[id]||0, rt[id]||0); }
+  state.tombstones=tombs;
+  SYNC_COLLECTIONS.forEach(k=>{ state[k]=mergeArr(state[k]||[], remote[k]||[], tombs); });
+  const lu=Date.parse((state.meta&&state.meta.updated)||0)||0, ru=Date.parse((remote.meta&&remote.meta.updated)||0)||0;
+  if(ru>lu && remote.meta) state.meta=remote.meta;
+  mergeDefaults(); // keep default agencies present & contacts fresh
+}
+async function fetchRemote(tok){
+  const ref=await resolveFileRef(tok);
+  if(ref){
+    let res=await fetch(refContentUrl(ref),{headers:{Authorization:"Bearer "+tok}});
+    if(res.status===404){ const fresh=await resolveFileRef(tok,true); if(fresh) res=await fetch(refContentUrl(fresh),{headers:{Authorization:"Bearer "+tok}}); }
+    if(res.status===404) return {status:404,ref};
+    if(res.status===403){ const e=new Error("403"); e.code=403; throw e; }
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    return {status:200,ref,data:await res.json()};
+  }
+  const res=await fetch(driveRootUrl(),{headers:{Authorization:"Bearer "+tok}});
+  if(res.status===404) return {status:404};
+  if(res.status===403){ const e=new Error("403"); e.code=403; throw e; }
+  if(!res.ok) throw new Error("HTTP "+res.status);
+  return {status:200,data:await res.json()};
+}
+async function downloadFromOneDrive(){
+  if(!authedUser||!msalInstance) return;
+  setSync("syncing","Loading…");
+  try{
+    const tok=await getToken();
+    const r=await fetchRemote(tok);
+    if(r.status===404){ await saveToOneDrive(); setSync("connected","Synced"); return; }
+    if(r.data && r.data._envelope==="oxefit-agent-console"){ mergeRemote(r.data); await saveLocalOnly(); render(); }
+    _sharedErrShown=false; setSync("connected","Synced"+((state.meta&&state.meta.by)?" · "+state.meta.by.split(" ")[0]:""));
+  }catch(e){ if(e&&e.code===403){ showSharedError(); return; } setSync("error","Sync error"); }
+}
+async function saveToOneDrive(){
+  if(!authedUser||!msalInstance) return;
+  if(_saving) return; _saving=true;
+  setSync("syncing","Saving…");
+  try{
+    const tok=await getToken();
+    try{ const r=await fetchRemote(tok); if(r.status===200&&r.data&&r.data._envelope==="oxefit-agent-console"){ mergeRemote(r.data); await saveLocalOnly(); } }
+    catch(me){ if(me&&me.code===403){ showSharedError(); _saving=false; return; } }
+    const envelope={_envelope:"oxefit-agent-console",meta:state.meta||{},tombstones:state.tombstones||{},agencies:state.agencies,properties:state.properties};
+    const ref=_fileRef||await resolveFileRef(tok);
+    const putUrl=ref?refContentUrl(ref):driveRootUrl();
+    let res=await fetch(putUrl,{method:"PUT",headers:{Authorization:"Bearer "+tok,"Content-Type":"application/json"},body:JSON.stringify(envelope)});
+    if(res.status===403){ showSharedError(); _saving=false; return; }
+    if(res.status===404&&ref){ _fileRef=null; res=await fetch(driveRootUrl(),{method:"PUT",headers:{Authorization:"Bearer "+tok,"Content-Type":"application/json"},body:JSON.stringify(envelope)}); if(res.status===403){ showSharedError(); _saving=false; return; } }
+    if(!res.ok&&res.status!==201) throw new Error("HTTP "+res.status);
+    _sharedErrShown=false; setSync("connected","Synced"+((state.meta&&state.meta.by)?" · "+state.meta.by.split(" ")[0]:""));
+  }catch(e){ setSync("error","Sync error"); }
+  finally{ _saving=false; }
+}
+async function manualSync(){ if(!authedUser){ toast("Sign in first"); return; } await downloadFromOneDrive(); await saveToOneDrive(); toast("Synced with OneDrive"); }
+function startPolling(){ if(_pollStarted) return; _pollStarted=true;
+  setInterval(async()=>{ if(!authedUser||_saving) return;
+    try{ const tok=await getToken(); const r=await fetchRemote(tok);
+      if(r.status===200&&r.data&&r.data._envelope==="oxefit-agent-console"){ mergeRemote(r.data); await saveLocalOnly(); renderIfIdle(); setSync("connected","Synced"+((state.meta&&state.meta.by)?" · "+state.meta.by.split(" ")[0]:"")); } }catch(_){}
+  },15000);
+}
+function renderIfIdle(){ const ae=document.activeElement; if(ae&&(ae.tagName==="INPUT"||ae.tagName==="SELECT"||ae.tagName==="TEXTAREA"))return; if($("overlay").classList.contains("open")||$("agOverlay").classList.contains("open"))return; render(); }
 </script>
 <script>
 /* ---------- SPEC (single source of truth) ---------- */
@@ -404,22 +522,36 @@ let pendingEmail=null, lastVerdict=null;
 async function load(){
   try{ const r=await store.get(KEY); if(r&&r.value){ state=JSON.parse(r.value);} }
   catch(e){ /* first run */ }
+  if(!state.agencies) state.agencies=[];
+  if(!state.properties) state.properties=[];
+  if(!state.meta) state.meta={};
+  if(!state.tombstones||typeof state.tombstones!=="object") state.tombstones={};
+  mergeDefaults();
+  render();
+  // shared team sync — same file mechanism as the delivery tracker
+  downloadFromOneDrive().then(()=>startPolling());
+}
+function mergeDefaults(){
   if(!state.agencies||!state.agencies.length){
     state.agencies=DEFAULT_AGENCIES.map(a=>({...a,contact:"",stage:STAGES[0],last:null,notes:""}));
   } else {
-    // merge new defaults + prefill contacts where user hasn't entered their own
     DEFAULT_AGENCIES.forEach(d=>{
       const ex=state.agencies.find(a=>a.id===d.id);
-      if(!ex){ state.agencies.push({...d,contact:"",stage:STAGES[0],last:null,notes:""}); }
+      const dead=state.tombstones&&state.tombstones[d.id];
+      if(!ex){ if(!dead) state.agencies.push({...d,contact:"",stage:STAGES[0],last:null,notes:""}); }
       else { if(!ex.email&&d.email) ex.email=d.email; if(!ex.phone&&d.phone) ex.phone=d.phone; ex.focus=d.focus; }
     });
   }
-  if(!state.properties) state.properties=[];
-  render();
 }
+async function saveLocalOnly(){
+  try{ await store.set(KEY, JSON.stringify(state)); }catch(e){}
+}
+let _cloudTimer=null;
 async function save(){
+  touch();
   try{ await store.set(KEY, JSON.stringify(state)); }
   catch(e){ toast("Could not save — storage error"); }
+  clearTimeout(_cloudTimer); _cloudTimer=setTimeout(saveToOneDrive,1500);
 }
 
 /* ---------- HELPERS ---------- */
@@ -532,8 +664,8 @@ function renderPipe(){
   });
   $("pipeList").innerHTML=html;
 }
-function upd(id,k,v){ const a=state.agencies.find(x=>x.id===id); a[k]=v.trim(); save(); }
-function setStage(id,s){ const a=state.agencies.find(x=>x.id===id); a.stage=s; if(["Outreach sent","Follow-up 1 sent","Follow-up 2 sent"].includes(s)) a.last=new Date().toISOString(); save(); render(); }
+function upd(id,k,v){ const a=state.agencies.find(x=>x.id===id); a[k]=v.trim(); a._ts=Date.now(); save(); }
+function setStage(id,s){ const a=state.agencies.find(x=>x.id===id); a.stage=s; if(["Outreach sent","Follow-up 1 sent","Follow-up 2 sent"].includes(s)) a.last=new Date().toISOString(); a._ts=Date.now(); save(); render(); }
 
 /* ---------- ADD / REMOVE AGENCIES ---------- */
 function openAgencyForm(){ $("agOverlay").classList.add("open"); }
@@ -547,13 +679,14 @@ function saveAgency(){
     focus:$("ag_focus").value.trim()||"Added manually",
     web:$("ag_web").value.trim().replace(/^https?:\/\//,""),
     contact:$("ag_contact").value.trim(), email:$("ag_email").value.trim(), phone:$("ag_phone").value.trim(),
-    stage:STAGES[0], last:null, notes:"", custom:true
+    stage:STAGES[0], last:null, notes:"", custom:true, _ts:Date.now()
   });
   save(); render(); closeAgencyForm(); toast(name+" added to "+g);
 }
 function deleteAgency(id){
   const a=state.agencies.find(x=>x.id===id); if(!a) return;
   if(!confirm("Remove "+a.name+" from the pipeline? Its logged options stay in the shortlist.")) return;
+  markDeleted(id);
   state.agencies=state.agencies.filter(x=>x.id!==id);
   save(); render(); toast(a.name+" removed");
 }
@@ -695,8 +828,8 @@ function runQualify(){
 function clearQualify(){ ["q_name","q_size","q_ceiling","q_rent","q_sc","q_notes"].forEach(i=>$(i).value=""); $("verdictBox").innerHTML='<div class="empty">Cleared. Enter the next option.</div>'; $("saveRow").style.display="none"; lastVerdict=null; }
 function saveProperty(){
   if(!lastVerdict) return;
-  state.properties.push(lastVerdict);
-  const a=state.agencies.find(x=>x.id===lastVerdict.agencyId); if(a&&a.stage!=="Options received"){a.stage="Options received";}
+  lastVerdict._ts=Date.now(); state.properties.push(lastVerdict);
+  const a=state.agencies.find(x=>x.id===lastVerdict.agencyId); if(a&&a.stage!=="Options received"){a.stage="Options received";a._ts=Date.now();}
   save(); render(); toast("Saved to shortlist"); showTab('short');
 }
 
@@ -715,7 +848,7 @@ function renderShortlist(){
     '<td><button class="btn ghost" onclick="delProp('+p.id+')">Remove</button></td></tr>').join("")+
    '</tbody></table>';
 }
-function delProp(id){ state.properties=state.properties.filter(p=>p.id!==id); save(); render(); }
+function delProp(id){ markDeleted(id); state.properties=state.properties.filter(p=>p.id!==id); save(); render(); }
 
 /* ---------- TABS ---------- */
 function showTab(t){
