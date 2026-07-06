@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -47,6 +46,9 @@ main{max-width:1180px;margin:0 auto;padding:22px 26px 80px}
 .agency .web:hover{text-decoration:underline}
 .agency input{width:100%;background:var(--navy);border:1px solid var(--line);color:var(--paper);border-radius:6px;padding:6px 8px;font-size:12px;margin-top:4px}
 .agency input:focus{outline:none;border-color:var(--gold-soft)}
+.agency .comment{grid-column:1/-1;width:100%;background:var(--navy);border:1px solid var(--line);color:var(--paper);border-radius:6px;padding:7px 10px;font-size:12.5px;font-family:'Inter';resize:vertical;min-height:34px}
+.agency .comment:focus{outline:none;border-color:var(--gold-soft)}
+.agency .comment::placeholder{color:var(--muted);opacity:.7}
 select{background:var(--navy);border:1px solid var(--line);color:var(--paper);border-radius:6px;padding:7px 8px;font-size:12px;width:100%}
 select:focus{outline:none;border-color:var(--gold-soft)}
 .badge{display:inline-block;font-size:11px;letter-spacing:.06em;padding:3px 10px;border-radius:12px;border:1px solid var(--line);color:var(--muted);margin-top:5px}
@@ -659,7 +661,9 @@ function renderPipe(){
         '<div class="btnrow">'+nextBtn+
         (["Responded","Options received"].includes(a.stage)?'<button class="btn" onclick="prefillQualify(\''+a.id+'\')">Qualify their option</button>':"")+
         (a.custom?'<button class="btn ghost" onclick="deleteAgency(\''+a.id+'\')">✕</button>':"")+
-        '</div></div>';
+        '</div>'+
+        '<textarea class="comment" rows="1" placeholder="Comments — call outcomes, named contacts, units discussed…" onchange="upd(\''+a.id+'\',\'notes\',this.value)">'+esc(a.notes||"")+'</textarea>'+
+        '</div>';
     });
   });
   $("pipeList").innerHTML=html;
