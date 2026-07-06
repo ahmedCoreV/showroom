@@ -519,10 +519,10 @@ function renderPipe(){
       else if(a.stage==="Follow-up 2 sent") nextBtn='<button class="btn ghost" onclick="setStage(\''+a.id+'\',\'No fit / closed\')">Close out</button>';
       html+='<div class="agency'+(due?' due':'')+'">'+
         '<div><div class="name">'+esc(a.name)+(a.custom?' <span style="font-size:10px;color:var(--muted);letter-spacing:.06em">ADDED</span>':'')+'</div><div class="focus">'+esc(a.focus)+'</div>'+
-        (a.web?'<a class="web" href="https://'+a.web+'" target="_blank" rel="noopener">'+a.web+'</a>':"")+
-        (a.phone?'<span style="color:var(--muted);font-size:12px"> · ☎ '+esc(a.phone)+'</span>':"")+'</div>'+
+        (a.web?'<a class="web" href="https://'+a.web+'" target="_blank" rel="noopener">'+a.web+'</a>':"")+'</div>'+
         '<div><input placeholder="Contact name (optional)" value="'+esc(a.contact)+'" onchange="upd(\''+a.id+'\',\'contact\',this.value)">'+
-        '<input placeholder="Retail leasing email" value="'+esc(a.email)+'" onchange="upd(\''+a.id+'\',\'email\',this.value)"></div>'+
+        '<input placeholder="Retail leasing email" value="'+esc(a.email)+'" onchange="upd(\''+a.id+'\',\'email\',this.value)">'+
+        '<input placeholder="Mobile / phone" value="'+esc(a.phone||"")+'" onchange="upd(\''+a.id+'\',\'phone\',this.value)"></div>'+
         '<div><select onchange="setStage(\''+a.id+'\',this.value)">'+STAGES.map(s=>'<option'+(s===a.stage?' selected':'')+'>'+s+'</option>').join("")+'</select>'+badge+'</div>'+
         '<div class="btnrow">'+nextBtn+
         (["Responded","Options received"].includes(a.stage)?'<button class="btn" onclick="prefillQualify(\''+a.id+'\')">Qualify their option</button>':"")+
