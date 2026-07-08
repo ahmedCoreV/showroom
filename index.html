@@ -27,12 +27,18 @@ nav button.active{background:var(--gold);border-color:var(--gold);color:var(--na
 nav button:hover:not(.active){border-color:var(--gold-soft);color:var(--paper)}
 main{max-width:1180px;margin:0 auto;padding:22px 26px 80px}
 
-/* dashboard strip */
-.dash{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:22px}
-.dash .card{background:var(--navy2);border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px}
-.dash .n{font-family:'Space Grotesk';font-size:26px;font-weight:700;color:var(--gold)}
+/* dashboard strip — single stat bar */
+.dash{background:var(--navy2);border:1px solid var(--line);border-radius:var(--radius);display:grid;grid-template-columns:repeat(8,1fr);margin-bottom:22px;overflow:hidden}
+.dash .stat{padding:14px 10px 12px;text-align:center;border-left:1px solid var(--line);position:relative}
+.dash .stat:first-child{border-left:none}
+.dash .n{font-family:'Space Grotesk';font-size:26px;font-weight:700;color:var(--gold);line-height:1.05}
 .dash .n.alert{color:var(--warn)}
-.dash .l{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.dash .n.good{color:var(--pass)}
+.dash .n.dead{color:var(--muted)}
+.dash .l{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-top:4px;line-height:1.3}
+.dash .stat.hot::after{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:var(--warn)}
+@media(max-width:1000px){.dash{grid-template-columns:repeat(4,1fr)}.dash .stat:nth-child(5){border-left:none}.dash .stat:nth-child(-n+4){border-bottom:1px solid var(--line)}}
+@media(max-width:560px){.dash{grid-template-columns:repeat(2,1fr)}.dash .stat{border-left:none;border-bottom:1px solid var(--line)}.dash .stat:nth-child(2n){border-left:1px solid var(--line)}.dash .stat:nth-last-child(-n+2){border-bottom:none}}
 
 .grouptitle{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin:26px 0 10px;border-bottom:1px solid var(--line);padding-bottom:6px;display:flex;justify-content:space-between;align-items:baseline}
 .grouptitle small{color:var(--muted);letter-spacing:.02em;text-transform:none}
@@ -633,11 +639,11 @@ function renderDash(){
   const overBudget=ag.filter(a=>a.stage==="Out of budget").length;
   const closed=ag.filter(a=>a.stage==="No fit / closed").length;
   $("dash").innerHTML=
-   card(ag.length,"Agencies & landlords")+card(sent,"Outreach sent")+
-   card(due,"Follow-ups due",due>0)+card(resp,"Responded")+
-   card(opts,"Options logged")+card(passing,"Passing spec")+
-   card(overBudget,"Out of budget",overBudget>0)+card(closed,"No fit / closed");
-  function card(n,l,alert){return '<div class="card"><div class="n'+(alert?' alert':'')+'">'+n+'</div><div class="l">'+l+'</div></div>';}
+   stat(ag.length,"Agencies & landlords")+stat(sent,"Outreach sent")+
+   stat(due,"Follow-ups due",due>0?"alert":"", due>0)+stat(resp,"Responded",resp>0?"good":"")+
+   stat(opts,"Options logged")+stat(passing,"Passing spec",passing>0?"good":"")+
+   stat(overBudget,"Out of budget",overBudget>0?"alert":"", overBudget>0)+stat(closed,"No fit / closed",closed>0?"dead":"");
+  function stat(n,l,cls,hot){return '<div class="stat'+(hot?' hot':'')+'"><div class="n '+(cls||'')+'">'+n+'</div><div class="l">'+l+'</div></div>';}
 }
 function renderPipe(){
   const groups=[...new Set(state.agencies.map(a=>a.g))];
