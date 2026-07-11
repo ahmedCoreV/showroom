@@ -113,6 +113,10 @@ tr:hover td{background:rgba(201,161,91,.05)}
 .note{color:var(--muted);font-size:12px;margin-top:10px}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--gold);color:var(--navy);font-family:'Space Grotesk';font-weight:700;padding:10px 22px;border-radius:22px;display:none;z-index:99}
 .tab{display:none}.tab.active{display:block}
+.pipefilter{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+.pipefilter input{flex:1;min-width:200px;background:var(--navy2);border:1px solid var(--line);color:var(--paper);border-radius:8px;padding:8px 12px;font-size:13px}
+.pipefilter input:focus{outline:none;border-color:var(--gold-soft)}
+.pipefilter select{width:auto;min-width:150px;background:var(--navy2)}
 .sync-chip{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;padding:5px 12px;border-radius:20px;cursor:pointer;border:1px solid var(--line);color:var(--muted);background:var(--navy2);font-family:'Space Grotesk';white-space:nowrap}
 .sync-chip:hover{border-color:var(--gold-soft)}
 .sync-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
@@ -175,7 +179,23 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 
 <!-- PIPELINE -->
 <div class="tab active" id="tab-pipe">
-  <div style="display:flex;justify-content:flex-end;margin-bottom:4px">
+  <div class="pipefilter">
+    <input id="pf_q" placeholder="Search name, focus, comments…" oninput="renderPipe()">
+    <select id="pf_group" onchange="renderPipe()">
+      <option value="">All groups</option>
+      <option>Dubai — Agencies</option>
+      <option>Abu Dhabi — Agencies</option>
+      <option>Mall Landlords — Direct</option>
+    </select>
+    <select id="pf_stage" onchange="renderPipe()">
+      <option value="">All stages</option>
+      <option value="__due__">⚑ Follow-ups due</option>
+      <option>Not contacted</option><option>Outreach sent</option><option>Follow-up 1 sent</option>
+      <option>Follow-up 2 sent</option><option>Responded</option><option>Options received</option>
+      <option>Out of budget</option><option>No fit / closed</option>
+    </select>
+    <span id="pf_count" style="color:var(--muted);font-size:12px;white-space:nowrap"></span>
+    <button class="btn ghost" onclick="clearPipeFilter()">Clear</button>
     <button class="btn solid" onclick="openAgencyForm()">+ Add agency</button>
   </div>
   <div id="pipeList"></div>
@@ -202,11 +222,13 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
         <div><label>24/7 tenant-controlled A/C</label><select id="q_ac"><option value="yes">Yes</option><option value="unknown">Unknown</option><option value="no">No</option></select></div>
         <div><label>Handover condition</label><select id="q_hand"><option value="fitted">Fitted / ready</option><option value="minor">Minor fit-out needed</option><option value="shell">Shell & core</option></select></div>
         <div><label>If shell &amp; core — fit-out cost integrated with rent (1–2 yrs)?</label><select id="q_amort"><option value="na">N/A (not shell & core)</option><option value="yes">Yes — landlord agrees</option><option value="neg">Negotiable / TBC</option><option value="no">No — full capex on us</option></select></div>
-        <div><label>W/C within unit</label><select id="q_wc"><option value="yes">Available in unit</option><option value="add">Can be added (approved)</option><option value="no">Not possible</option></select></div>
+        <div><label>W/C within unit</label><select id="q_wc"><option value="yes">Available in unit</option><option value="mall">Mall shared facilities nearby</option><option value="add">Can be added (approved)</option><option value="no">Not possible</option></select></div>
         <div><label>Parking &amp; valet</label><select id="q_park"><option value="valet">Valet available</option><option value="dedicated">Dedicated customer parking</option><option value="public">Public parking nearby</option><option value="none">No convenient parking</option></select></div>
         <div><label>Floor loading for heavy unit</label><select id="q_load"><option value="ok">Confirmed adequate</option><option value="unknown">Unknown — to verify</option><option value="no">Insufficient</option></select></div>
         <div><label>Lease term offered</label><select id="q_term"><option value="match">1–3 years (matches brief)</option><option value="short">Under 1 year</option><option value="long">Over 3 years</option></select></div>
         <div class="full"><label>Notes</label><input id="q_notes" placeholder="Handover condition, availability, landlord contribution…"></div>
+        <div class="full"><label>Photos / videos of the unit</label><input type="file" id="q_media" multiple accept="image/*,video/*">
+        <div style="color:var(--muted);font-size:11.5px;margin-top:4px">Attached files upload to the shared OXEFIT/PropertyMedia folder on save — visible to the whole team from the shortlist.</div></div>
       </div>
       <div style="margin-top:14px;display:flex;gap:8px">
         <button class="btn solid" onclick="runQualify()">Run qualification</button>
@@ -215,7 +237,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     </div>
     <div class="panel">
       <h2>Verdict</h2>
-      <div id="verdictBox"><div class="empty">Enter an option's details and run qualification. It is scored against the full OxeFit brief: 150–180 m², ≥3.0 m ceiling, ground-floor glazed frontage, AED 400,000 all-in ceiling, delivery access, 24/7 A/C, floor loading, handover condition (with rent-integrated fit-out for shell &amp; core), W/C in unit, parking/valet, and lease term.</div></div>
+      <div id="verdictBox"><div class="empty">Enter an option's details and run qualification. It is scored against the full OxeFit brief: 1,000–2,500 sq ft accepted (150–180 m² ideal), ≥3.0 m ceiling, ground-floor glazed frontage, AED 400,000 all-in ceiling, delivery access, 24/7 A/C, floor loading, handover condition (with rent-integrated fit-out for shell &amp; core), W/C in unit, parking/valet, and lease term.</div></div>
       <div id="saveRow" style="display:none;margin-top:10px"><button class="btn solid" onclick="saveProperty()">Save to shortlist</button></div>
     </div>
   </div>
@@ -470,6 +492,50 @@ async function saveToOneDrive(){
   }catch(e){ setSync("error","Sync error"); }
   finally{ _saving=false; }
 }
+const MEDIA_FOLDER="/OXEFIT/PropertyMedia";
+async function graphUploadMedia(file,prefix){
+  const tok=await getToken();
+  const safe=(prefix+"-"+file.name).replace(/[^\w.\- ]/g,"_");
+  const base="https://graph.microsoft.com/v1.0/users/"+encodeURIComponent(MSAL_CONFIG.sharedDriveUser)+"/drive/root:"+MEDIA_FOLDER+"/"+encodeURIComponent(safe);
+  if(file.size<=3500000){
+    const res=await fetch(base+":/content",{method:"PUT",headers:{Authorization:"Bearer "+tok,"Content-Type":file.type||"application/octet-stream"},body:file});
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    return await res.json();
+  }
+  // large file (videos): upload session in 5 MB chunks
+  const sess=await fetch(base+":/createUploadSession",{method:"POST",headers:{Authorization:"Bearer "+tok,"Content-Type":"application/json"},body:JSON.stringify({item:{"@microsoft.graph.conflictBehavior":"rename"}})});
+  if(!sess.ok) throw new Error("session HTTP "+sess.status);
+  const url=(await sess.json()).uploadUrl;
+  const CH=5242880; let item=null;
+  for(let s=0;s<file.size;s+=CH){
+    const e=Math.min(s+CH,file.size);
+    const res=await fetch(url,{method:"PUT",headers:{"Content-Range":"bytes "+s+"-"+(e-1)+"/"+file.size},body:file.slice(s,e)});
+    if(!res.ok&&res.status!==202) throw new Error("chunk HTTP "+res.status);
+    if(res.status===200||res.status===201) item=await res.json();
+  }
+  return item;
+}
+async function uploadPropertyMedia(files,prefix){
+  const out=[];
+  for(let i=0;i<files.length;i++){
+    const f=files[i];
+    toast("Uploading "+(i+1)+"/"+files.length+": "+f.name);
+    try{ const item=await graphUploadMedia(f,prefix); out.push({name:f.name,webUrl:(item&&item.webUrl)||"",video:(f.type||"").startsWith("video")}); }
+    catch(e){ toast("Upload failed: "+f.name+" — check shared-drive access"); }
+  }
+  return out;
+}
+async function addMediaToProp(id){
+  const p=state.properties.find(x=>x.id===id); if(!p) return;
+  const inp=document.createElement("input"); inp.type="file"; inp.multiple=true; inp.accept="image/*,video/*";
+  inp.onchange=async()=>{
+    if(!inp.files.length) return;
+    if(!authedUser){ toast("Sign in with Microsoft to upload media"); return; }
+    const media=await uploadPropertyMedia(inp.files,(p.name||"unit").slice(0,30));
+    p.media=(p.media||[]).concat(media); p._ts=Date.now(); save(); render(); toast(media.length+" file(s) attached");
+  };
+  inp.click();
+}
 async function manualSync(){ if(!authedUser){ toast("Sign in first"); return; } await downloadFromOneDrive(); await saveToOneDrive(); toast("Synced with OneDrive"); }
 function startPolling(){ if(_pollStarted) return; _pollStarted=true;
   setInterval(async()=>{ if(!authedUser||_saving) return;
@@ -482,7 +548,7 @@ function renderIfIdle(){ const ae=document.activeElement; if(ae&&(ae.tagName==="
 <script>
 /* ---------- SPEC (single source of truth) ---------- */
 const SPEC = {
-  sizeMin:150, sizeMax:180, sizeHardMin:135, sizeHardMax:200,
+  sizeMin:150, sizeMax:180, sizeHardMin:93, sizeHardMax:232,  // 1,000–2,500 sq ft acceptable band
   ceilingMin:3.0, budget:400000,
   areas:{
     "Dubai":["Premium mall — Mall of the Emirates","Premium mall — Souk Madinat Jumeirah","Premium mall — Dubai Hills Mall","Premium mall — Nakheel Mall","Premium mall — Marina Mall","Premium mall — other","Community mall — The Springs Souk","Community mall — Ranches Souk / AR III Souk","Community mall — Nad Al Sheba Mall","Community mall — Circle Mall (JVC)","Community mall — First Avenue (Motor City)","Community mall — Mercato / Town Centre Jumeirah","Community mall — other","Downtown / DIFC corridor","Jumeirah / Umm Suqeim","City Walk / Alserkal Avenue","Palm Jumeirah","Dubai Hills / Umm Al Sheif","Other Dubai"],
@@ -645,12 +711,27 @@ function renderDash(){
    stat(overBudget,"Out of budget",overBudget>0?"alert":"", overBudget>0)+stat(closed,"No fit / closed",closed>0?"dead":"");
   function stat(n,l,cls,hot){return '<div class="stat'+(hot?' hot':'')+'"><div class="n '+(cls||'')+'">'+n+'</div><div class="l">'+l+'</div></div>';}
 }
+function pipeMatch(a){
+  const q=(($("pf_q")||{}).value||"").trim().toLowerCase();
+  const gf=(($("pf_group")||{}).value||"");
+  const sf=(($("pf_stage")||{}).value||"");
+  if(gf && a.g!==gf) return false;
+  if(sf==="__due__"){ if(!followupDue(a)) return false; }
+  else if(sf && a.stage!==sf) return false;
+  if(q){ const hay=(a.name+" "+(a.focus||"")+" "+(a.notes||"")+" "+(a.contact||"")+" "+(a.email||"")).toLowerCase(); if(!hay.includes(q)) return false; }
+  return true;
+}
+function clearPipeFilter(){ $("pf_q").value=""; $("pf_group").value=""; $("pf_stage").value=""; renderPipe(); }
 function renderPipe(){
+  const matches=state.agencies.filter(pipeMatch);
+  const cnt=$("pf_count"); if(cnt) cnt.textContent=matches.length+" of "+state.agencies.length+" shown";
   const groups=[...new Set(state.agencies.map(a=>a.g))];
   let html="";
   groups.forEach(g=>{
-    html+='<div class="grouptitle">'+g+'<small>'+state.agencies.filter(a=>a.g===g).length+' targets</small></div>';
-    state.agencies.filter(a=>a.g===g).forEach(a=>{
+    const inGroup=matches.filter(a=>a.g===g);
+    if(!inGroup.length) return;
+    html+='<div class="grouptitle">'+g+'<small>'+inGroup.length+' targets</small></div>';
+    inGroup.forEach(a=>{
       const due=followupDue(a);
       const badge = due?'<span class="badge due">⚑ '+due+'</span>'
         : (["Responded","Options received"].includes(a.stage)?'<span class="badge resp">'+a.stage+'</span>'
@@ -676,7 +757,7 @@ function renderPipe(){
         '</div>';
     });
   });
-  $("pipeList").innerHTML=html;
+  $("pipeList").innerHTML=html||'<div class="empty">No agencies match the current filter.</div>';
 }
 function upd(id,k,v){ const a=state.agencies.find(x=>x.id===id); a[k]=v.trim(); a._ts=Date.now(); save(); }
 function setStage(id,s){ const a=state.agencies.find(x=>x.id===id); a.stage=s; if(["Outreach sent","Follow-up 1 sent","Follow-up 2 sent"].includes(s)) a.last=new Date().toISOString(); a._ts=Date.now(); save(); render(); }
@@ -733,12 +814,16 @@ function markSent(){
 
 /* ---------- QUALIFY ---------- */
 function renderQualifyOptions(){
-  $("q_agency").innerHTML=state.agencies.map(a=>'<option value="'+a.id+'">'+esc(a.name)+'</option>').join("");
+  const sel=$("q_agency"); const prev=sel.value;
+  sel.innerHTML=state.agencies.map(a=>'<option value="'+a.id+'">'+esc(a.name)+'</option>').join("");
+  if(prev && state.agencies.some(a=>a.id===prev)) sel.value=prev;   // keep the user's choice across re-renders
   fillAreas();
 }
 function fillAreas(){
   const city=$("q_city").value;
-  $("q_area").innerHTML=SPEC.areas[city].map(x=>'<option>'+x+'</option>').join("");
+  const sel=$("q_area"); const prev=sel.value;
+  sel.innerHTML=SPEC.areas[city].map(x=>'<option>'+x+'</option>').join("");
+  if(prev && SPEC.areas[city].includes(prev)) sel.value=prev;
 }
 document.addEventListener("change",e=>{ if(e.target.id==="q_city") fillAreas(); });
 
@@ -762,8 +847,8 @@ function runQualify(){
 
   // Size (15)
   if(size>=SPEC.sizeMin&&size<=SPEC.sizeMax){ score+=15; R("ok","Size "+size+" m² — inside the 150–180 m² target"); }
-  else if(size>=SPEC.sizeHardMin&&size<=SPEC.sizeHardMax){ soft=true; score+=8; R("wr","Size "+size+" m² — outside target but workable ("+SPEC.sizeHardMin+"–"+SPEC.sizeHardMax+" tolerance)"); }
-  else { hardFail=true; R("fl","Size "+size+" m² — outside acceptable range"); }
+  else if(size>=SPEC.sizeHardMin&&size<=SPEC.sizeHardMax){ soft=true; score+=8; R("wr","Size "+size+" m² ("+Math.round(size*10.764).toLocaleString()+" sq ft) — outside the 150–180 m² sweet spot but within the accepted 1,000–2,500 sq ft band"); }
+  else { hardFail=true; R("fl","Size "+size+" m² ("+Math.round(size*10.764).toLocaleString()+" sq ft) — outside the accepted 1,000–2,500 sq ft range"); }
 
   // Ceiling — hard gate (12)
   if(ceil>=SPEC.ceilingMin){ score+=12; R("ok","Clear height "+ceil+" m — meets 3.0 m minimum"); }
@@ -802,10 +887,11 @@ function runQualify(){
     else { soft=true; R("wr","Shell & core with full fit-out capex on us — significant cost on top of the rent budget; factor before offering"); }
   }
 
-  // W/C (4) — hard gate if impossible (changing room is part of the concept)
+  // W/C (4) — hard gate only if truly impossible (changing room is part of the concept)
   if(wc==="yes"){ score+=4; R("ok","W/C available within the unit"); }
+  else if(wc==="mall"){ score+=4; R("ok","Mall shared W/C & facilities adjacent — acceptable for mall units (common and well-maintained)"); }
   else if(wc==="add"){ soft=true; score+=2; R("wr","W/C can be added subject to approval — confirm drainage & cost before LOI"); }
-  else { hardFail=true; R("fl","No W/C possible — the changing/freshen-up room is core to the demo experience"); }
+  else { hardFail=true; R("fl","No W/C possible in or near the unit — the changing/freshen-up experience is core to the demo journey"); }
 
   // Parking & valet (4)
   if(park==="valet"){ score+=4; R("ok","Valet available — matches the luxury client journey"); }
@@ -840,8 +926,14 @@ function runQualify(){
   $("saveRow").style.display="block";
 }
 function clearQualify(){ ["q_name","q_size","q_ceiling","q_rent","q_sc","q_notes"].forEach(i=>$(i).value=""); $("verdictBox").innerHTML='<div class="empty">Cleared. Enter the next option.</div>'; $("saveRow").style.display="none"; lastVerdict=null; }
-function saveProperty(){
+async function saveProperty(){
   if(!lastVerdict) return;
+  const files=$("q_media")&&$("q_media").files;
+  if(files&&files.length){
+    if(!authedUser){ toast("Sign in with Microsoft to upload media — saving without files"); }
+    else { lastVerdict.media=await uploadPropertyMedia(files,(lastVerdict.name||"unit").slice(0,30)); }
+    $("q_media").value="";
+  }
   lastVerdict._ts=Date.now(); state.properties.push(lastVerdict);
   const a=state.agencies.find(x=>x.id===lastVerdict.agencyId); if(a&&a.stage!=="Options received"){a.stage="Options received";a._ts=Date.now();}
   save(); render(); toast("Saved to shortlist"); showTab('short');
@@ -859,7 +951,9 @@ function renderShortlist(){
     '<td>'+p.city+'<div style="color:var(--muted);font-size:12px">'+esc(p.area)+'</div></td>'+
     '<td>'+p.size+' m² · '+p.ceil+' m</td>'+
     '<td>'+fmtAED(p.total)+'</td><td>'+esc(p.agency)+'</td>'+
-    '<td><button class="btn ghost" onclick="delProp('+p.id+')">Remove</button></td></tr>').join("")+
+    '<td style="white-space:nowrap">'+((p.media&&p.media.length)?p.media.map((m,i)=>'<a class="btn ghost" style="padding:4px 8px;margin:1px" href="'+m.webUrl+'" target="_blank" rel="noopener" title="'+esc(m.name)+'">'+(m.video?"▶":"📷")+" "+(i+1)+'</a>').join("")+" ":"")+
+    '<button class="btn ghost" style="padding:4px 8px" onclick="addMediaToProp('+p.id+')">+ Media</button> '+
+    '<button class="btn ghost" onclick="delProp('+p.id+')">Remove</button></td></tr>').join("")+
    '</tbody></table>';
 }
 function delProp(id){ markDeleted(id); state.properties=state.properties.filter(p=>p.id!==id); save(); render(); }
