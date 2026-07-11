@@ -397,7 +397,7 @@ const SYNC_COLLECTIONS=["agencies","properties"];
 
 function setSync(cls,txt){ const c=$("syncChip"),d=$("syncDot"),t=$("syncText"); if(c)c.className="sync-chip "+(cls||""); if(d)d.className="sync-dot "+(cls||""); if(t)t.textContent=txt; }
 function touch(){ state.meta={...(state.meta||{}), updated:new Date().toISOString(), by:(authedUser&&(authedUser.name||authedUser.username))||""}; }
-function markDeleted(id){ if(!id) return; state.tombstones=state.tombstones||{}; state.tombstones[id]=Date.now(); }
+function markDeleted(id){ if(id==null) return; state.tombstones=state.tombstones||{}; state.tombstones[String(id)]=Date.now(); }
 
 function driveRootUrl(){
   return "https://graph.microsoft.com/v1.0/users/"+encodeURIComponent(MSAL_CONFIG.sharedDriveUser)+"/drive/root:"+MSAL_CONFIG.filePath+":/content";
@@ -431,9 +431,9 @@ function showSharedError(){ setSync("error","No shared-drive access"); if(_share
   toast("Can't reach the shared drive ("+MSAL_CONFIG.sharedDriveUser+") — saving on this device only. Ask Ahmed to share the OXEFIT folder, then sign in again."); }
 
 function mergeArr(localArr,remoteArr,tombs){
-  const m=new Map(); (remoteArr||[]).forEach(r=>{ if(r&&r.id) m.set(r.id,r); });
-  (localArr||[]).forEach(l=>{ if(!l||!l.id) return; const r=m.get(l.id); if(!r) m.set(l.id,l); else m.set(l.id,(l._ts||0)>=(r._ts||0)?l:r); });
-  if(tombs){ for(const id in tombs){ const rec=m.get(id); if(rec && (tombs[id]>=(rec._ts||0))) m.delete(id); } }
+  const m=new Map(); (remoteArr||[]).forEach(r=>{ if(r&&r.id!=null) m.set(String(r.id),r); });
+  (localArr||[]).forEach(l=>{ if(!l||l.id==null) return; const k=String(l.id); const r=m.get(k); if(!r) m.set(k,l); else m.set(k,(l._ts||0)>=(r._ts||0)?l:r); });
+  if(tombs){ for(const id in tombs){ const rec=m.get(String(id)); if(rec) m.delete(String(id)); } }
   return [...m.values()];
 }
 function mergeRemote(remote){
@@ -526,7 +526,7 @@ async function uploadPropertyMedia(files,prefix){
   return out;
 }
 async function addMediaToProp(id){
-  const p=state.properties.find(x=>x.id===id); if(!p) return;
+  const p=state.properties.find(x=>String(x.id)===String(id)); if(!p) return;
   const inp=document.createElement("input"); inp.type="file"; inp.multiple=true; inp.accept="image/*,video/*";
   inp.onchange=async()=>{
     if(!inp.files.length) return;
@@ -783,7 +783,7 @@ function deleteAgency(id){
   if(!confirm("Remove "+a.name+" from the pipeline? Its logged options stay in the shortlist.")) return;
   markDeleted(id);
   state.agencies=state.agencies.filter(x=>x.id!==id);
-  save(); render(); toast(a.name+" removed");
+  save(); saveToOneDrive(); render(); toast(a.name+" removed");
 }
 
 /* ---------- EMAIL MODAL ---------- */
@@ -956,7 +956,7 @@ function renderShortlist(){
     '<button class="btn ghost" onclick="delProp('+p.id+')">Remove</button></td></tr>').join("")+
    '</tbody></table>';
 }
-function delProp(id){ markDeleted(id); state.properties=state.properties.filter(p=>p.id!==id); save(); render(); }
+function delProp(id){ markDeleted(id); state.properties=state.properties.filter(p=>String(p.id)!==String(id)); save(); saveToOneDrive(); render(); }
 
 /* ---------- TABS ---------- */
 function showTab(t){
