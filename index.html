@@ -172,7 +172,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     <div class="step"><div class="sn">2</div><div><b>Fire the outreach.</b> Click <b>Generate outreach</b> on a row. A pre-written email opens with the full spec and the AED 400,000 all-in ceiling, and it references the attached brief. Click <b>Download brief PDF</b> in the same window, then <b>Open in email app</b> (or <b>Copy</b>), drag the PDF into the email, and send. When sent, click <b>Mark as sent</b> — this starts the follow-up clock.</div></div>
     <div class="step"><div class="sn">3</div><div><b>Let the follow-up engine work.</b> After 4 days with no reply, the row turns amber: <i>Follow-up 1 due</i>, with a ready chaser email. Five days later, <i>Follow-up 2 due</i>. Seven days after that it suggests a call or close-out. Daily routine: open the console, check the "Follow-ups due" number, click through the amber rows. Ten minutes.</div></div>
     <div class="step"><div class="sn">4</div><div><b>When an agent replies,</b> set their stage to <b>Responded</b>. A "Qualify their option" button appears on their row and jumps you to the Qualify tab with the agency pre-selected.</div></div>
-    <div class="step"><div class="sn">5</div><div><b>Qualify the property.</b> Enter the unit's details from the agent's email and click <b>Run qualification</b>. Hard gates (over AED 400k all-in, ceiling under 3.0 m, no XP1 delivery route, no 24/7 A/C, insufficient floor loading, no W/C possible) = automatic <b>FAIL</b>. Soft issues (shell &amp; core without rent-integrated fit-out, weak frontage, no valet, short lease term) = <b>CONDITIONAL</b> with warnings. Clean = <b>PASS</b>. Copy the reason lines back to the agent as feedback — it trains them on your spec fast.</div></div>
+    <div class="step"><div class="sn">5</div><div><b>Qualify the property.</b> Enter the unit's details from the agent's email and click <b>Run qualification</b>. Hard gates (over AED 550k effective annual incl. amortised fit-out, ceiling under 3.0 m, no XP1 delivery route, no 24/7 A/C, insufficient floor loading, no W/C possible) = automatic <b>FAIL</b>. Soft issues (shell &amp; core without rent-integrated fit-out, weak frontage, no valet, short lease term) = <b>CONDITIONAL</b> with warnings. Clean = <b>PASS</b>. Copy the reason lines back to the agent as feedback — it trains them on your spec fast.</div></div>
     <div class="step"><div class="sn">6</div><div><b>Build the shortlist.</b> Save each qualified option; the Shortlist tab ranks them by score across both cities. That table is your viewing schedule — highest score first.</div></div>
     <p class="note">The loop: outreach → timer → chase → reply → qualify → shortlist. The console handles memory and discipline; you handle sending and negotiating.</p>
   </div>
@@ -223,6 +223,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
         <div><label>24/7 tenant-controlled A/C</label><select id="q_ac"><option value="yes">Yes</option><option value="unknown">Unknown</option><option value="no">No</option></select></div>
         <div><label>Handover condition</label><select id="q_hand"><option value="fitted">Fitted / ready</option><option value="minor">Minor fit-out needed</option><option value="shell">Shell & core</option></select></div>
         <div><label>If shell &amp; core — fit-out cost integrated with rent (1–2 yrs)?</label><select id="q_amort"><option value="na">N/A (not shell & core)</option><option value="yes">Yes — landlord agrees</option><option value="neg">Negotiable / TBC</option><option value="no">No — full capex on us</option></select></div>
+        <div><label>Fit-out estimate (AED, total)</label><input id="q_fitout" type="number" placeholder="e.g. 250000"></div>
         <div><label>W/C within unit</label><select id="q_wc"><option value="yes">Available in unit</option><option value="mall">Mall shared facilities nearby</option><option value="add">Can be added (approved)</option><option value="no">Not possible</option></select></div>
         <div><label>Parking &amp; valet</label><select id="q_park"><option value="valet">Valet available</option><option value="dedicated">Dedicated customer parking</option><option value="public">Public parking nearby</option><option value="none">No convenient parking</option></select></div>
         <div><label>Floor loading for heavy unit</label><select id="q_load"><option value="ok">Confirmed adequate</option><option value="unknown">Unknown — to verify</option><option value="no">Insufficient</option></select></div>
@@ -238,7 +239,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
     </div>
     <div class="panel">
       <h2>Verdict</h2>
-      <div id="verdictBox"><div class="empty">Enter an option's details and run qualification. It is scored against the full OxeFit brief: 1,000–2,500 sq ft accepted (150–180 m² ideal), ≥3.0 m ceiling, ground-floor glazed frontage, AED 400,000 all-in ceiling, delivery access, 24/7 A/C, floor loading, handover condition (with rent-integrated fit-out for shell &amp; core), W/C in unit, parking/valet, and lease term.</div></div>
+      <div id="verdictBox"><div class="empty">Enter an option's details and run qualification. It is scored against the full OxeFit brief: 1,000–2,500 sq ft accepted (150–180 m² ideal), ≥3.0 m ceiling, ground-floor glazed frontage, AED 550,000 effective-annual ceiling (rent + SC + fit-out amortised over 2 yrs), delivery access, 24/7 A/C, floor loading, handover condition (with rent-integrated fit-out for shell &amp; core), W/C in unit, parking/valet, and lease term.</div></div>
       <div id="saveRow" style="display:none;margin-top:10px"><button class="btn solid" onclick="saveProperty()">Save to shortlist</button></div>
     </div>
   </div>
@@ -632,7 +633,7 @@ function renderIfIdle(){ const ae=document.activeElement; if(ae&&(ae.tagName==="
 /* ---------- SPEC (single source of truth) ---------- */
 const SPEC = {
   sizeMin:150, sizeMax:180, sizeHardMin:93, sizeHardMax:232,  // 1,000–2,500 sq ft acceptable band
-  ceilingMin:3.0, budget:400000,
+  ceilingMin:3.0, budget:550000,  // internal qualification ceiling (outreach emails still state AED 400k)
   areas:{
     "Dubai":["Premium mall — Mall of the Emirates","Premium mall — Souk Madinat Jumeirah","Premium mall — Dubai Hills Mall","Premium mall — Nakheel Mall","Premium mall — Marina Mall","Premium mall — other","Community mall — The Springs Souk","Community mall — Ranches Souk / AR III Souk","Community mall — Nad Al Sheba Mall","Community mall — Circle Mall (JVC)","Community mall — First Avenue (Motor City)","Community mall — Mercato / Town Centre Jumeirah","Community mall — other","Downtown / DIFC corridor","Jumeirah / Umm Suqeim","City Walk / Alserkal Avenue","Palm Jumeirah","Dubai Hills / Umm Al Sheif","Other Dubai"],
     "Abu Dhabi":["Premium mall — The Galleria","Premium mall — Yas Mall","Premium mall — Marina Mall AD","Premium mall — Reem Mall","Premium mall — other","Community mall — Makani (Aldar)","Community mall — Al Raha Mall","Community mall — My City Centre Masdar","Community mall — other","Al Maryah Island","Saadiyat Island","Yas Island","Al Bateen / Corniche","Al Reem Island","Other Abu Dhabi"]
@@ -927,6 +928,7 @@ function runQualify(){
   const size=parseFloat($("q_size").value), ceil=parseFloat($("q_ceiling").value);
   const rent=parseFloat($("q_rent").value)||0, sc=parseFloat($("q_sc").value)||0;
   const total=rent+sc;
+  const fitout=parseFloat($("q_fitout").value)||0;
   const floor=$("q_floor").value, front=$("q_front").value, del=$("q_del").value, ac=$("q_ac").value;
   const hand=$("q_hand").value, amort=$("q_amort").value, wc=$("q_wc").value, park=$("q_park").value, loadv=$("q_load").value, term=$("q_term").value;
   const area=$("q_area").value, isMall=area.startsWith("Premium mall"), isCommMall=area.startsWith("Community mall");
@@ -935,9 +937,18 @@ function runQualify(){
   const reasons=[]; let score=0; let hardFail=false, soft=false;
   const R=(cls,txt)=>reasons.push({cls,txt});
 
-  // Budget — hard gate (25)
-  if(total>SPEC.budget){ hardFail=true; R("fl","Total "+fmtAED(total)+" exceeds the AED 400,000 all-in ceiling"); }
-  else { score+=25; R("ok","Within budget: "+fmtAED(total)+" all-in ("+Math.round(total/SPEC.budget*100)+"% of ceiling)"); }
+  // Budget — hard gate (25): rent + SC + fit-out amortised over 2 years (unless landlord absorbs it into rent)
+  const amortSel=$("q_amort").value;
+  const fitAnnual = (fitout>0 && amortSel!=="yes") ? Math.round(fitout/2) : 0;
+  const eff = total + fitAnnual;
+  if(eff>SPEC.budget){
+    hardFail=true;
+    R("fl","Effective annual cost "+fmtAED(eff)+(fitAnnual?" (rent+SC "+fmtAED(total)+" + fit-out "+fmtAED(fitout)+" over 2 yrs)":"")+" exceeds the "+fmtAED(SPEC.budget)+" ceiling");
+  } else {
+    score+=25;
+    R("ok","Within budget: "+fmtAED(eff)+" effective annual ("+Math.round(eff/SPEC.budget*100)+"% of "+fmtAED(SPEC.budget)+" ceiling)"+(fitAnnual?" — incl. fit-out "+fmtAED(fitout)+" amortised over 2 yrs":""));
+    if(fitout>0 && amortSel==="yes") R("ok","Fit-out "+fmtAED(fitout)+" absorbed by landlord into rent — excluded from the budget test");
+  }
 
   // Size (15)
   if(size>=SPEC.sizeMin&&size<=SPEC.sizeMax){ score+=15; R("ok","Size "+size+" m² — inside the 150–180 m² target"); }
@@ -1009,7 +1020,7 @@ function runQualify(){
   score=Math.min(100,Math.max(0,score));
 
   lastVerdict={ id:Date.now(), agencyId:$("q_agency").value, agency:(state.agencies.find(a=>a.id===$("q_agency").value)||{}).name||"",
-    city:$("q_city").value, area, name:$("q_name").value||"Unnamed unit", size, ceil, floor, front, rent, sc, total, del, ac,
+    city:$("q_city").value, area, name:$("q_name").value||"Unnamed unit", size, ceil, floor, front, rent, sc, total, fitout, eff, del, ac,
     hand, amort, wc, park, loadv, term,
     notes:$("q_notes").value, verdict, score, reasons, date:new Date().toISOString() };
 
@@ -1019,7 +1030,7 @@ function runQualify(){
     '</div>';
   $("saveRow").style.display="block";
 }
-function clearQualify(){ editingPropId=null; ["q_name","q_size","q_ceiling","q_rent","q_sc","q_notes"].forEach(i=>$(i).value=""); $("verdictBox").innerHTML='<div class="empty">Cleared. Enter the next option.</div>'; $("saveRow").style.display="none"; lastVerdict=null; }
+function clearQualify(){ editingPropId=null; ["q_name","q_size","q_ceiling","q_rent","q_sc","q_fitout","q_notes"].forEach(i=>$(i).value=""); $("verdictBox").innerHTML='<div class="empty">Cleared. Enter the next option.</div>'; $("saveRow").style.display="none"; lastVerdict=null; }
 let editingPropId=null;
 function editProp(id){
   const p=state.properties.find(x=>String(x.id)===String(id)); if(!p) return;
@@ -1030,7 +1041,7 @@ function editProp(id){
   if(p.area) $("q_area").value=p.area;
   $("q_name").value=p.name||""; $("q_size").value=p.size||""; $("q_ceiling").value=p.ceil||"";
   $("q_floor").value=p.floor||"ground"; $("q_front").value=p.front||"glazed";
-  $("q_rent").value=p.rent||""; $("q_sc").value=p.sc||"";
+  $("q_rent").value=p.rent||""; $("q_sc").value=p.sc||""; $("q_fitout").value=p.fitout||"";
   $("q_del").value=p.del||"yes"; $("q_ac").value=p.ac||"yes";
   $("q_hand").value=p.hand||"fitted"; $("q_amort").value=p.amort||"na";
   $("q_wc").value=p.wc||"yes"; $("q_park").value=p.park||"valet";
@@ -1074,7 +1085,7 @@ function renderShortlist(){
     '<td>'+esc(p.name)+(p.hand?'<div style="color:var(--muted);font-size:12px">'+(p.hand==="shell"?"Shell & core"+(p.amort==="yes"?" · fit-out in rent":p.amort==="neg"?" · amortization TBC":""):p.hand==="minor"?"Minor fit-out":"Fitted")+'</div>':"")+(p.notes?'<div style="color:var(--muted);font-size:12px">'+esc(p.notes)+'</div>':"")+'</td>'+
     '<td>'+p.city+'<div style="color:var(--muted);font-size:12px">'+esc(p.area)+'</div></td>'+
     '<td>'+p.size+' m² · '+p.ceil+' m</td>'+
-    '<td>'+fmtAED(p.total)+'</td><td>'+esc(p.agency)+'</td>'+
+    '<td>'+fmtAED(p.eff!=null?p.eff:p.total)+((p.fitout&&(p.eff||0)>(p.total||0))?'<div style="color:var(--muted);font-size:11px">incl. fit-out/2yr</div>':'')+'</td><td>'+esc(p.agency)+'</td>'+
     '<td style="white-space:nowrap">'+((p.media&&p.media.length)?p.media.map((m,i)=>'<a class="btn ghost" style="padding:4px 8px;margin:1px" href="'+m.webUrl+'" target="_blank" rel="noopener" title="'+esc(m.name)+'">'+(m.video?"▶":"📷")+" "+(i+1)+'</a>').join("")+" ":"")+
     '<button class="btn ghost" style="padding:4px 8px" onclick="editProp('+p.id+')">Edit</button> '+
     '<button class="btn ghost" style="padding:4px 8px" onclick="addMediaToProp('+p.id+')">+ Media</button> '+
@@ -1146,8 +1157,8 @@ async function exportShortlistPDF(){
       '<td><b>Frontage</b>'+(FRONT_L[p.front]||p.front||"—")+'</td></tr><tr>'+
       '<td><b>Annual rent</b>AED '+Number(p.rent||0).toLocaleString()+'</td>'+
       '<td><b>Service charge</b>AED '+Number(p.sc||0).toLocaleString()+'</td>'+
-      '<td><b>All-in cost</b>AED '+Number(p.total||0).toLocaleString()+'</td>'+
-      '<td><b>vs AED 400k ceiling</b>'+Math.round((p.total||0)/4000)+'%</td></tr><tr>'+
+      '<td><b>Fit-out est. / Effective annual</b>AED '+Number(p.fitout||0).toLocaleString()+' / AED '+Number((p.eff!=null?p.eff:p.total)||0).toLocaleString()+'</td>'+
+      '<td><b>vs AED 550k ceiling</b>'+Math.round(((p.eff!=null?p.eff:p.total)||0)/5500)+'%</td></tr><tr>'+
       '<td><b>Handover</b>'+(HAND_L[p.hand]||"—")+(p.hand==="shell"?" · fit-out in rent: "+(AMORT_L[p.amort]||"—"):"")+'</td>'+
       '<td><b>W/C</b>'+(YN_L[p.wc]||"—")+'</td>'+
       '<td><b>Parking</b>'+(PARK_L[p.park]||"—")+'</td>'+
@@ -1161,7 +1172,7 @@ async function exportShortlistPDF(){
       (imgs?'<div class="photos">'+imgs+'</div>':"")+vhtml+
     '</section>';
   }
-  const sumRows=sorted.map((p,i)=>'<tr><td>'+(i+1)+'</td><td>'+esc(p.name)+'</td><td>'+esc(p.city)+'</td><td>'+p.size+' m²</td><td>AED '+Number(p.total||0).toLocaleString()+'</td><td class="'+(p.verdict==="PASS"?"pass":p.verdict==="FAIL"?"fail":"warn")+'">'+p.verdict+'</td><td>'+p.score+'</td></tr>').join("");
+  const sumRows=sorted.map((p,i)=>'<tr><td>'+(i+1)+'</td><td>'+esc(p.name)+'</td><td>'+esc(p.city)+'</td><td>'+p.size+' m²</td><td>AED '+Number((p.eff!=null?p.eff:p.total)||0).toLocaleString()+'</td><td class="'+(p.verdict==="PASS"?"pass":p.verdict==="FAIL"?"fail":"warn")+'">'+p.verdict+'</td><td>'+p.score+'</td></tr>').join("");
   const doc='<!DOCTYPE html><html><head><meta charset="utf-8"><title>OxeFit UAE — Showroom Options Report</title><style>'+
   '@page{size:A4;margin:14mm} *{-webkit-print-color-adjust:exact;print-color-adjust:exact} body{font-family:Calibri,Arial,sans-serif;color:#222;margin:0}'+
   '.head{background:#1B2A41;color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center}'+
